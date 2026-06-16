@@ -58,6 +58,7 @@ import { Textarea } from '@spotcare/ui/components/textarea'
 import { Checkbox } from '@spotcare/ui/components/checkbox'
 import { ConfirmDeleteButton } from '@/components/confirm-delete-button'
 
+
 const DAYS = ['일', '월', '화', '수', '목', '금', '토'] as const
 
 const CYCLE_LABEL: Record<string, string> = {
@@ -66,7 +67,7 @@ const CYCLE_LABEL: Record<string, string> = {
   monthly: '매월',
 }
 
-const DEFAULT_ITEM = { item_name: '', response_type: 'checklist' as const, is_required: true }
+const DEFAULT_ITEM = { item_name: '', response_type: 'checklist' as const, is_required: false }
 
 type Props = {
   workspaceId: string
@@ -364,16 +365,15 @@ function ChecklistFormDialog({
                 </Button>
               </div>
               {fields.length > 0 && (
-                <div className="grid grid-cols-[1fr_100px_40px_32px] gap-x-2 gap-y-1 text-xs text-muted-foreground px-1 mb-1">
+                <div className="grid grid-cols-[1fr_100px_32px] gap-x-2 text-xs text-muted-foreground px-1 mb-1">
                   <span>항목명</span>
                   <span>응답 방식</span>
-                  <span className="text-center">필수</span>
                   <span />
                 </div>
               )}
               <div className="space-y-2">
                 {fields.map((field, index) => (
-                  <div key={field.id} className="grid grid-cols-[1fr_100px_40px_32px] gap-x-2 items-start">
+                  <div key={field.id} className="grid grid-cols-[1fr_100px_32px] gap-x-2 items-start">
                     <FormField
                       control={form.control}
                       name={`items.${index}.item_name`}
@@ -401,21 +401,6 @@ function ChecklistFormDialog({
                               <SelectItem value="checklist">체크리스트</SelectItem>
                             </SelectContent>
                           </Select>
-                        </FormItem>
-                      )}
-                    />
-                    <FormField
-                      control={form.control}
-                      name={`items.${index}.is_required`}
-                      render={({ field }) => (
-                        <FormItem className="flex items-center justify-center pt-2">
-                          <FormControl>
-                            <Checkbox
-                              checked={field.value}
-                              onCheckedChange={(v) => field.onChange(v === true)}
-                              title="필수 응답 항목"
-                            />
-                          </FormControl>
                         </FormItem>
                       )}
                     />
