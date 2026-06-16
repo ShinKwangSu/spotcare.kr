@@ -70,6 +70,34 @@ export type Facility = {
   created_at: string
 }
 
+/**
+ * inspectors — 점검 담당자. 테넌트 레벨 엔티티.
+ */
+export type Inspector = {
+  id: string
+  tenant_id: string
+  name: string
+  phone: string | null
+  email: string | null
+  created_at: string
+}
+
+/**
+ * checklists — 점검표. 워크스페이스 레벨 엔티티.
+ * days: 요일 배열(0=일~6=토). repeat_cycle='weekly'일 때만 사용.
+ */
+export type Checklist = {
+  id: string
+  workspace_id: string
+  tenant_id: string
+  checklist_name: string
+  description: string | null
+  repeat_cycle: 'daily' | 'weekly' | 'monthly'
+  count: number
+  days: number[] | null
+  created_at: string
+}
+
 // -----------------------------------------------------------------------------
 // Insert 타입 (INSERT 시 입력 형태 — DB 기본값/자동생성 컬럼은 선택적)
 // -----------------------------------------------------------------------------
@@ -130,6 +158,27 @@ export type FacilityUpdate = Partial<
   Omit<Facility, 'id' | 'tenant_id' | 'workspace_id' | 'created_at'>
 >
 
+export type InspectorInsert = {
+  id?: string
+  tenant_id: string
+  name: string
+  phone?: string | null
+  email?: string | null
+  created_at?: string
+}
+
+export type ChecklistInsert = {
+  id?: string
+  workspace_id: string
+  tenant_id: string
+  checklist_name: string
+  description?: string | null
+  repeat_cycle: 'daily' | 'weekly' | 'monthly'
+  count: number
+  days?: number[] | null
+  created_at?: string
+}
+
 // -----------------------------------------------------------------------------
 // Supabase 클라이언트 제네릭용 Database 인터페이스
 // createClient<Database>(...) 형태로 사용한다.
@@ -163,6 +212,18 @@ export type Database = {
         Row: Facility
         Insert: FacilityInsert
         Update: Partial<FacilityInsert>
+        Relationships: []
+      }
+      inspectors: {
+        Row: Inspector
+        Insert: InspectorInsert
+        Update: Partial<InspectorInsert>
+        Relationships: []
+      }
+      checklists: {
+        Row: Checklist
+        Insert: ChecklistInsert
+        Update: Partial<ChecklistInsert>
         Relationships: []
       }
     }

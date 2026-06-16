@@ -6,10 +6,12 @@ import { usePathname } from "next/navigation"
 import {
   ArrowLeftIcon,
   BuildingIcon,
+  ClipboardListIcon,
   LayoutDashboardIcon,
   LayoutGridIcon,
   ListIcon,
   MapPinIcon,
+  UsersIcon,
 } from "lucide-react"
 
 import { NavUser } from "@/components/nav-user"
@@ -38,8 +40,11 @@ export function AppSidebar({ workspaces, user, ...props }: Props) {
 
   // /dashboard/workspaces 이외의 /dashboard/[id]/... 패턴이면 워크스페이스 컨텍스트
   const segments = pathname.split("/").filter(Boolean)
+  const NON_WORKSPACE_SEGMENTS = new Set(["workspaces", "inspectors"])
   const workspaceId =
-    segments[0] === "dashboard" && segments[1] !== "workspaces" && segments[1]
+    segments[0] === "dashboard" &&
+    segments[1] &&
+    !NON_WORKSPACE_SEGMENTS.has(segments[1])
       ? segments[1]
       : null
   const activeWorkspace = workspaceId
@@ -112,6 +117,17 @@ export function AppSidebar({ workspaces, user, ...props }: Props) {
                     </Link>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
+                <SidebarMenuItem>
+                  <SidebarMenuButton
+                    asChild
+                    isActive={pathname.includes("/checklists")}
+                  >
+                    <Link href={`/dashboard/${workspaceId}/checklists`}>
+                      <ClipboardListIcon />
+                      <span>점검표 관리</span>
+                    </Link>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
               </SidebarMenu>
             </SidebarGroup>
           </>
@@ -138,6 +154,17 @@ export function AppSidebar({ workspaces, user, ...props }: Props) {
                   <Link href="/dashboard/workspaces">
                     <LayoutGridIcon />
                     <span>워크스페이스 목록</span>
+                  </Link>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+              <SidebarMenuItem>
+                <SidebarMenuButton
+                  asChild
+                  isActive={pathname === "/dashboard/inspectors"}
+                >
+                  <Link href="/dashboard/inspectors">
+                    <UsersIcon />
+                    <span>점검자 관리</span>
                   </Link>
                 </SidebarMenuButton>
               </SidebarMenuItem>
