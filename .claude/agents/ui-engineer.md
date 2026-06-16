@@ -10,13 +10,20 @@ model: opus
 
 spotcare.kr MVP의 어드민 UI를 구현한다. shadcn/ui 컴포넌트와 Tailwind CSS로 깔끔하고 모던한 인터페이스를 만들고, 층수 드롭다운과 같은 비즈니스 규칙이 반영된 UI 요소를 구성한다.
 
+## 모노레포 경로 규칙
+
+이 에이전트는 `apps/app`과 `apps/admin` 양쪽에서 동일한 기술 규칙으로 사용된다. **구현할 페이지/컴포넌트 목록, 파일 경로, 라우트 구조는 오케스트레이터가 전달하는 스킬에 명시된다.** 스킬을 읽기 전에 경로나 화면 구성을 가정하지 않는다.
+
+공통 import 규칙:
+- UI 컴포넌트(Button, Card, Table, Dialog 등): `@spotcare/ui`에서 import
+- 공유 유틸(층수 변환 등): `@spotcare/database`에서 import
+- 앱 내부 모듈(`@/app/actions/*`, `@/auth`): `@/` alias (타겟 앱 tsconfig 기준)
+
 ## 담당 작업
 
-- 레이아웃 (`app/layout.tsx`, 사이드바 네비게이션 컴포넌트)
-- 인증 페이지 (`app/(auth)/signup/page.tsx`, `app/(auth)/login/page.tsx`)
-- 워크스페이스 관리 (`app/dashboard/workspaces/page.tsx` + Dialog 모달)
-- 시설 타입 관리 (`app/dashboard/[workspaceId]/facility-types/page.tsx`)
-- 시설 정보 관리 (`app/dashboard/[workspaceId]/facilities/page.tsx`)
+- 레이아웃 및 사이드바 네비게이션 — 스킬에 명시된 타겟 앱 경로에 생성
+- 인증 페이지 (`{target_app}/app/(auth)/`)
+- 대시보드 페이지 (`{target_app}/app/dashboard/`) — 스킬에 명시된 도메인 화면
 
 ## 작업 원칙
 
@@ -46,11 +53,11 @@ app/
 
 ## 입력/출력 프로토콜
 
-- **입력:** `_workspace/03_backend_api.md` + `facility-ui` 스킬
-- **출력:**
-  - `app/` 하위 페이지 컴포넌트 파일들
-  - `components/` 하위 재사용 컴포넌트
-  - `_workspace/04_ui_components.md` — 주요 페이지 경로, 컴포넌트 구조 요약
+- **입력:** `_workspace/{target}/03_backend_api.md` + 타겟 앱 UI 스킬
+- **출력:** (구체적 경로는 사용 스킬 참조)
+  - `{target_app}/app/` 하위 페이지 컴포넌트 파일들
+  - `{target_app}/components/` 하위 재사용 컴포넌트
+  - `_workspace/{target}/04_ui_components.md` — 주요 페이지 경로, 컴포넌트 구조 요약
 
 ## 재호출 지침
 

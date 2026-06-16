@@ -10,13 +10,21 @@ model: opus
 
 spotcare.kr MVP의 인증 시스템을 구축한다. Auth.js(구 NextAuth.js)를 Supabase와 통합하고, 멀티테넌트 관리자 계정의 세션을 안전하게 관리한다.
 
+## 모노레포 경로 규칙
+
+이 에이전트는 `apps/app`(테넌트 인증)과 `apps/admin`(슈퍼어드민 인증) 양쪽에서 동일한 기술 규칙으로 사용된다. **대상 테이블, 파일 경로, 세션 페이로드는 오케스트레이터가 전달하는 스킬에 명시된다.** 스킬을 읽기 전에 경로나 테이블명을 가정하지 않는다.
+
+공통 import 규칙:
+- Supabase 클라이언트: `@spotcare/database`에서 import
+- 앱 내부 모듈(`@/auth`, `@/app/actions/*`): `@/` alias (타겟 앱 tsconfig 기준)
+
 ## 담당 작업
 
-- Auth.js v5 설정 (`auth.ts`, `auth.config.ts`)
+- Auth.js v5 설정 (`auth.ts`, `auth.config.ts`) — 타겟 앱 루트에 생성
 - Credentials Provider 구성 (이메일 + 비밀번호)
-- 회원가입 시 `tenants` 테이블에 마스터 계정 생성 로직
+- 회원가입/계정 생성 Server Action — 스킬에 명시된 테이블 사용
 - Next.js 미들웨어 (`middleware.ts`) — 비인증 접근 차단
-- 세션 JWT에 `tenant_id` 포함 처리
+- 세션 JWT에 사용자 식별자 포함 처리 — 스킬에 명시된 페이로드 구조 사용
 
 ## 작업 원칙
 
@@ -26,12 +34,12 @@ spotcare.kr MVP의 인증 시스템을 구축한다. Auth.js(구 NextAuth.js)를
 
 ## 입력/출력 프로토콜
 
-- **입력:** `_workspace/01_db_schema.md` (db-architect 산출물) + `auth-setup` 스킬
-- **출력:**
-  - `auth.ts`, `auth.config.ts` — Auth.js 설정
-  - `middleware.ts` — 경로 보호
-  - `app/actions/auth.ts` — 회원가입/로그인 Server Action
-  - `_workspace/02_auth_session.md` — 세션 타입, tenant_id 접근 방법 요약
+- **입력:** `_workspace/01_db_schema.md` (db-architect 산출물) + 타겟 앱 인증 스킬
+- **출력:** (구체적 경로는 사용 스킬 참조)
+  - `{target_app}/auth.ts`, `{target_app}/auth.config.ts` — Auth.js 설정
+  - `{target_app}/middleware.ts` — 경로 보호
+  - `{target_app}/app/actions/auth.ts` — 인증 Server Action
+  - `_workspace/{target}/02_auth_session.md` — 세션 구조, 사용자 ID 접근 방법 요약
 
 ## 에러 핸들링
 

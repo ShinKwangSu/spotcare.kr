@@ -1,39 +1,63 @@
 ---
 name: facility-ui
-description: spotcare.kr MVP shadcn/ui + Tailwind CSS 어드민 UI 구현 가이드. 회원가입/로그인 폼, 워크스페이스 목록/생성 Dialog, 시설 타입 CRUD, 시설 정보 Table + 층수 Select 드롭다운. UI Engineer 에이전트가 화면 구현 시 반드시 이 스킬을 사용한다. '화면', 'UI', '컴포넌트', '페이지', 'Dialog', 'Table', 'Select', '폼' 구현 시 트리거.
+description: spotcare.kr apps/app shadcn/ui + Tailwind CSS 어드민 UI 구현 가이드. 회원가입/로그인 폼, 워크스페이스 목록/생성 Dialog, 시설 타입 CRUD, 시설 정보 Table + 층수 Select 드롭다운. UI Engineer 에이전트가 apps/app 화면 구현 시 반드시 이 스킬을 사용한다. '화면', 'UI', '컴포넌트', '페이지', 'Dialog', 'Table', 'Select', '폼' 구현 시 트리거.
 ---
 
-# Facility UI — shadcn/ui + Tailwind CSS
+# Facility UI — apps/app shadcn/ui + Tailwind CSS
 
-## 라우트 구조
+## 대상 앱 및 파일 경로
+
+**타겟 앱:** `apps/app`
 
 ```
-app/
-├── (auth)/
-│   ├── login/page.tsx
-│   └── signup/page.tsx
-└── dashboard/
-    ├── layout.tsx              — 사이드바 포함 레이아웃
-    ├── workspaces/
-    │   └── page.tsx            — 워크스페이스 목록 + 생성
-    └── [workspaceId]/
-        ├── facility-types/
-        │   └── page.tsx        — 시설 타입 CRUD
-        └── facilities/
-            └── page.tsx        — 시설 정보 CRUD
+apps/app/
+├── app/
+│   ├── (auth)/
+│   │   ├── login/page.tsx
+│   │   └── signup/page.tsx
+│   └── dashboard/
+│       ├── layout.tsx              — 사이드바 포함 레이아웃
+│       ├── workspaces/
+│       │   └── page.tsx            — 워크스페이스 목록 + 생성
+│       └── [workspaceId]/
+│           ├── facility-types/
+│           │   └── page.tsx        — 시설 타입 CRUD
+│           └── facilities/
+│               └── page.tsx        — 시설 정보 CRUD
+└── components/                     — 재사용 컴포넌트
+```
+
+## Import 규칙
+
+```typescript
+// UI 컴포넌트 — @spotcare/ui에서 import
+import { Button } from '@spotcare/ui'
+import { Card, CardContent, CardHeader, CardTitle } from '@spotcare/ui'
+import { Form, FormField, FormItem, FormLabel, FormControl, FormMessage } from '@spotcare/ui'
+import { Input } from '@spotcare/ui'
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@spotcare/ui'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@spotcare/ui'
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@spotcare/ui'
+
+// 층수 변환 유틸 — @spotcare/database에서 import
+import { generateFloorOptions, floorToDisplay } from '@spotcare/database'
+
+// Server Actions — @/ alias (apps/app 내부)
+import { signUpAction } from '@/app/actions/auth'
+import { createWorkspace } from '@/app/actions/workspace'
 ```
 
 ## 회원가입 폼 패턴
 
 ```typescript
-// app/(auth)/signup/page.tsx
+// apps/app/app/(auth)/signup/page.tsx
 'use client'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { Form, FormField, FormItem, FormLabel, FormControl, FormMessage } from '@/components/ui/form'
-import { Input } from '@/components/ui/input'
-import { Button } from '@/components/ui/button'
+import { Card, CardContent, CardHeader, CardTitle } from '@spotcare/ui'
+import { Form, FormField, FormItem, FormLabel, FormControl, FormMessage } from '@spotcare/ui'
+import { Input } from '@spotcare/ui'
+import { Button } from '@spotcare/ui'
 import { signUpAction } from '@/app/actions/auth'
 
 // 필드: 업체명(company_name), 관리자 이름(admin_name), 전화번호(phone), 이메일(email), 비밀번호(password)
@@ -48,9 +72,7 @@ import { signUpAction } from '@/app/actions/auth'
 // 지하 층수: "지하 [ 2 ] 층" 형태의 Input (숫자 입력, 0 이상 — 백엔드에서 음수 변환)
 // shadcn/ui Dialog > DialogContent > Form 구조
 
-import {
-  Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger
-} from '@/components/ui/dialog'
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@spotcare/ui'
 
 // [워크스페이스 추가] 버튼 → Dialog 오픈 → 폼 제출 → revalidatePath로 목록 갱신
 ```
@@ -58,8 +80,8 @@ import {
 ## 층수 Select 드롭다운 패턴
 
 ```typescript
-import { generateFloorOptions } from '@/lib/utils/floor'
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { generateFloorOptions } from '@spotcare/database'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@spotcare/ui'
 
 // workspace의 max_floor, min_floor로 옵션 생성
 const floorOptions = generateFloorOptions(workspace.max_floor, workspace.min_floor)
@@ -84,8 +106,8 @@ const floorOptions = generateFloorOptions(workspace.max_floor, workspace.min_flo
 ## 시설 정보 Table
 
 ```typescript
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
-import { floorToDisplay } from '@/lib/utils/floor'
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@spotcare/ui'
+import { floorToDisplay } from '@spotcare/database'
 
 // 컬럼: 시설명 | 층수(표시용) | 시설 타입 | 위치 설명 | 비고 | 액션
 // floor 컬럼: DB에서 정수로 가져와 floorToDisplay()로 변환하여 표시
@@ -101,16 +123,6 @@ import { floorToDisplay } from '@/lib/utils/floor'
 | 시설 타입 | `Select` | `getFacilityTypes(workspaceId)` 드롭다운 |
 | 위치 설명 | `Textarea` | 자유 텍스트 (선택) |
 | 비고 | `Textarea` | 자유 텍스트 (선택) |
-
-## 사이드바 네비게이션 구조
-
-```typescript
-// app/dashboard/layout.tsx
-// 좌측 사이드바 네비게이션
-// - 워크스페이스 목록 (링크)
-// - 워크스페이스 선택 시 하위 메뉴: 시설 타입 관리, 시설 정보 관리
-// shadcn/ui의 NavigationMenu 또는 커스텀 Sidebar 컴포넌트
-```
 
 ## 에러/로딩 피드백
 
@@ -131,6 +143,8 @@ const [state, formAction, isPending] = useActionState(createWorkspace, null)
 
 ## 체크리스트
 
+- [ ] UI 컴포넌트를 `@spotcare/ui`에서 import (직접 구현 금지)
+- [ ] 층수 유틸을 `@spotcare/database`에서 import
 - [ ] 층수 입력은 항상 `Select` + `generateFloorOptions()` 사용 (직접 Input 금지)
 - [ ] `floorToDisplay()`로 Table에 층수 표시
 - [ ] 폼은 `react-hook-form` + `zod` 검증

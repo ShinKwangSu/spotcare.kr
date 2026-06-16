@@ -1,68 +1,50 @@
 ---
 name: facility-backend
-description: spotcare.kr MVP Next.js Server Actions 구현 가이드. 워크스페이스/시설 타입/시설 정보 CRUD, 층수 변환 유틸리티(floorToDisplay/generateFloorOptions), 멀티테넌트 격리 패턴. Backend Engineer 에이전트가 Server Action 구현 시 반드시 이 스킬을 사용한다. 'Server Action', 'CRUD', '층수 변환', '시설', '워크스페이스' 구현 시 트리거.
+description: spotcare.kr apps/app Server Actions 구현 가이드. 워크스페이스/시설 타입/시설 정보 CRUD, 멀티테넌트 격리 패턴. Backend Engineer 에이전트가 apps/app Server Action 구현 시 반드시 이 스킬을 사용한다. 'Server Action', 'CRUD', '시설', '워크스페이스' 구현 시 트리거.
 ---
 
-# Facility Backend — Server Actions & Business Logic
+# Facility Backend — apps/app Server Actions
 
-## 층수 변환 유틸리티 (`lib/utils/floor.ts`)
+## 대상 앱 및 파일 경로
 
-```typescript
-/**
- * 정수 층수를 표시 문자열로 변환
- * 양수: 3 → "3F"
- * 음수: -1 → "B1"
- */
-export function floorToDisplay(floor: number): string {
-  if (floor > 0) return `${floor}F`
-  if (floor < 0) return `B${Math.abs(floor)}`
-  return '0F' // 0층은 명세에 없음 — 필요 시 조정
-}
+**타겟 앱:** `apps/app`
 
-/**
- * 워크스페이스의 층수 범위로 드롭다운 옵션 생성
- * max_floor=3, min_floor=-1 → [3F, 2F, 1F, B1] 순
- */
-export function generateFloorOptions(
-  max_floor: number,
-  min_floor: number
-): { value: number; label: string }[] {
-  const options: { value: number; label: string }[] = []
-  
-  for (let floor = max_floor; floor >= min_floor; floor--) {
-    if (floor === 0) continue // 0층 건너뜀 (지상/지하 경계)
-    options.push({ value: floor, label: floorToDisplay(floor) })
-  }
-  
-  return options
-}
+```
+apps/app/
+├── app/
+│   └── actions/
+│       ├── auth.ts           — 인증 (auth-setup 스킬 참조)
+│       ├── workspace.ts      — 워크스페이스 CRUD
+│       ├── facility-type.ts  — 시설 타입 CRUD
+│       └── facility.ts       — 시설 정보 CRUD
+└── lib/
+    └── validations/
+        ├── workspace.ts
+        ├── facility-type.ts
+        └── facility.ts
 ```
 
-## Supabase 클라이언트 (`lib/supabase/`)
+## Import 규칙
 
 ```typescript
-// lib/supabase/server.ts — Server Component, Server Action, Route Handler용
-import { createServerClient } from '@supabase/ssr'
-import { cookies } from 'next/headers'
+// Supabase 클라이언트 — @spotcare/database에서 import
+import { createClient } from '@spotcare/database'
 
-export function createClient() {
-  const cookieStore = cookies()
-  return createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!, // 서버에서는 service role 키 사용
-    { cookies: { getAll: () => cookieStore.getAll() } }
-  )
-}
+// 층수 변환 유틸 — @spotcare/database에서 import
+import { floorToDisplay, generateFloorOptions } from '@spotcare/database'
+
+// 앱 내부 인증 — @/ alias 사용
+import { auth } from '@/auth'
 ```
 
-## 공통 패턴 — tenant_id 필터
+## 공통 패턴 — tenantId 필터
 
 **모든 Server Action은 이 패턴을 따른다.**
 
 ```typescript
 'use server'
 import { auth } from '@/auth'
-import { createClient } from '@/lib/supabase/server'
+import { createClient } from '@spotcare/database'
 
 async function getTenantId(): Promise<string> {
   const session = await auth()
@@ -78,7 +60,7 @@ async function getTenantId(): Promise<string> {
 import { z } from 'zod'
 import { revalidatePath } from 'next/cache'
 import { auth } from '@/auth'
-import { createClient } from '@/lib/supabase/server'
+import { createClient } from '@spotcare/database'
 
 const workspaceSchema = z.object({
   workspace_name: z.string().min(1),
@@ -164,14 +146,28 @@ const facilitySchema = z.object({
 // DB 저장: floor = 3 (3층), floor = -1 (지하 1층)
 ```
 
-## Zod 검증 스키마 위치
+## 층수 변환 유틸 (`@spotcare/database`)
 
-`lib/validations/workspace.ts`, `lib/validations/facility-type.ts`, `lib/validations/facility.ts`에 스키마를 별도 파일로 분리하여 Server Action과 UI Form에서 공유한다.
+```typescript
+// packages/database/src/utils/floor.ts — 이미 존재. 새로 생성하지 말 것.
+
+// floorToDisplay: 정수 → 표시 문자열
+// 양수 n → `${n}F`  예: 3 → "3F"
+// 음수 n → `B${Math.abs(n)}`  예: -1 → "B1"
+
+// generateFloorOptions: max에서 min까지 내림차순 배열 생성
+// max=3, min=-1 → [{ value: 3, label: "3F" }, { value: 2, label: "2F" }, { value: 1, label: "1F" }, { value: -1, label: "B1" }]
+```
+
+## Zod 검증 스키마
+
+`apps/app/lib/validations/workspace.ts`, `facility-type.ts`, `facility.ts`에 스키마를 별도 파일로 분리하여 Server Action과 UI Form에서 공유한다.
 
 ## 체크리스트
 
 - [ ] 모든 Server Action에 `tenant_id` 필터 포함
-- [ ] `floorToDisplay()`와 `generateFloorOptions()` export
+- [ ] Supabase 클라이언트를 `@spotcare/database`에서 import
+- [ ] 층수 유틸을 `@spotcare/database`에서 import (직접 구현 금지)
 - [ ] `min_floor` UI 입력(양수) → DB 저장(음수) 변환 처리
 - [ ] Zod로 모든 입력 검증
 - [ ] 성공/실패 일관된 반환 타입 `{ success: boolean, data?, error? }`

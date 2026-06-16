@@ -5,9 +5,19 @@ description: spotcare.kr MVP Supabase 스키마 설계 가이드. tenants/worksp
 
 # DB Schema — spotcare.kr MVP
 
+## 산출물 경로 (모노레포 루트 기준)
+
+| 산출물 | 경로 |
+|-------|------|
+| 마이그레이션 SQL | `supabase/migrations/NNN_*.sql` |
+| TypeScript 타입 | `packages/database/src/types/database.ts` |
+| 에이전트 간 요약 | `_workspace/01_db_schema.md` |
+
+> `packages/database/src/types/database.ts`는 `apps/app`과 `apps/admin` 양쪽이 `@spotcare/database`로 import한다.
+
 ## 테이블 구조
 
-### tenants (마스터 계정/업체)
+### tenants (마스터 계정/업체 — apps/app 사용자)
 ```sql
 CREATE TABLE tenants (
   id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -35,11 +45,11 @@ CREATE TABLE workspaces (
 ### facility_types (시설 타입/공간 카테고리)
 ```sql
 CREATE TABLE facility_types (
-  id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  id           UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   workspace_id UUID NOT NULL REFERENCES workspaces(id) ON DELETE CASCADE,
-  tenant_id   UUID NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
-  type_name   VARCHAR(100) NOT NULL,
-  created_at  TIMESTAMPTZ DEFAULT NOW()
+  tenant_id    UUID NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
+  type_name    VARCHAR(100) NOT NULL,
+  created_at   TIMESTAMPTZ DEFAULT NOW()
 );
 ```
 
@@ -95,9 +105,9 @@ FOR ALL
 USING (tenant_id = current_setting('app.current_tenant_id')::UUID);
 ```
 
-> RLS 대신 Server Action에서 `tenant_id` WHERE 조건으로 직접 격리하는 방식도 가능하다. Supabase의 `anon` 키를 서버에서만 사용하고 클라이언트에 노출하지 않는다면 Server Action 레벨 필터가 더 단순하다. 두 방법 모두 적용하면 이중 안전장치가 된다.
+> RLS 대신 Server Action에서 `tenant_id` WHERE 조건으로 직접 격리하는 방식도 가능하다. 두 방법 모두 적용하면 이중 안전장치가 된다.
 
-## TypeScript 타입 (`types/database.ts`)
+## TypeScript 타입 (`packages/database/src/types/database.ts`)
 
 ```typescript
 export type Tenant = {
@@ -139,16 +149,11 @@ export type Facility = {
 }
 ```
 
-## 산출물 경로
-
-- `supabase/migrations/001_initial_schema.sql` — 전체 DDL + RLS
-- `types/database.ts` — TypeScript 타입
-- `_workspace/01_db_schema.md` — 다음 에이전트를 위한 스키마 요약
-
 ## 체크리스트
 
 - [ ] 모든 테이블에 UUID PK 사용
 - [ ] workspaces, facility_types, facilities에 tenant_id FK 포함
 - [ ] RLS 정책 또는 Server Action 레벨 tenant_id 필터 적용
 - [ ] min_floor는 음수로 저장 (지하 2층 → `-2`)
-- [ ] TypeScript 타입 DB 스키마와 동기화
+- [ ] TypeScript 타입이 `packages/database/src/types/database.ts`에 생성됨
+- [ ] TypeScript 타입이 DB 스키마와 동기화됨

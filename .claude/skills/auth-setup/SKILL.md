@@ -1,17 +1,22 @@
 ---
 name: auth-setup
-description: spotcare.kr MVP Auth.js v5 + Supabase 통합 설정 가이드. Credentials Provider, 회원가입 Server Action, 미들웨어 경로 보호, 세션 JWT에 tenant_id 포함 처리. Auth Engineer 에이전트가 인증 구현 시 반드시 이 스킬을 사용한다. '인증', '로그인', '회원가입', 'Auth.js', 'session' 관련 작업 시 트리거.
+description: spotcare.kr apps/app 테넌트 인증 가이드. Auth.js v5 + Supabase 통합, Credentials Provider, 회원가입 Server Action, 미들웨어 경로 보호, 세션 JWT에 tenantId 포함 처리. Auth Engineer 에이전트가 apps/app 인증 구현 시 반드시 이 스킬을 사용한다. '인증', '로그인', '회원가입', 'Auth.js', 'session' 관련 작업 시 트리거.
 ---
 
-# Auth Setup — Auth.js v5 + Supabase
+# Auth Setup — apps/app 테넌트 인증
 
-## 파일 구조
+## 대상 앱 및 파일 경로
+
+**타겟 앱:** `apps/app`
 
 ```
-auth.ts              — NextAuth 인스턴스 (handlers, auth, signIn, signOut export)
-auth.config.ts       — 설정 (providers, callbacks, pages)
-middleware.ts        — 경로 보호
-app/actions/auth.ts  — 회원가입/로그인 Server Action
+apps/app/
+├── auth.config.ts        — Auth.js 설정 (providers, callbacks, pages)
+├── auth.ts               — NextAuth 인스턴스 export
+├── middleware.ts         — 경로 보호
+└── app/
+    └── actions/
+        └── auth.ts       — 회원가입/로그인/로그아웃 Server Action
 ```
 
 ## auth.config.ts 패턴
@@ -21,7 +26,7 @@ import type { NextAuthConfig } from 'next-auth'
 import Credentials from 'next-auth/providers/credentials'
 import { z } from 'zod'
 import bcrypt from 'bcryptjs'
-import { createClient } from '@/lib/supabase/server'
+import { createClient } from '@spotcare/database'  // @/lib/supabase/server 대신 사용
 
 const loginSchema = z.object({
   email: z.string().email(),
@@ -40,7 +45,7 @@ export const authConfig: NextAuthConfig = {
       return true
     },
     jwt({ token, user }) {
-      // 세션 JWT에 tenant_id 포함 — Server Action에서 auth()로 접근 가능
+      // 세션 JWT에 tenantId 포함 — Server Action에서 auth()로 접근 가능
       if (user) {
         token.tenantId = (user as any).tenantId
       }
@@ -110,7 +115,7 @@ export const config = {
 
 import { z } from 'zod'
 import bcrypt from 'bcryptjs'
-import { createClient } from '@/lib/supabase/server'
+import { createClient } from '@spotcare/database'
 import { signIn } from '@/auth'
 
 const signUpSchema = z.object({
@@ -146,7 +151,7 @@ export async function signUpAction(formData: FormData) {
 }
 ```
 
-## Server Action에서 tenant_id 접근
+## Server Action에서 tenantId 접근
 
 ```typescript
 import { auth } from '@/auth'
@@ -154,7 +159,7 @@ import { auth } from '@/auth'
 export async function someAction() {
   const session = await auth()
   if (!session?.user) throw new Error('Unauthorized')
-  
+
   const tenantId = (session.user as any).tenantId
   // 모든 쿼리에 tenantId 필터 적용
 }
@@ -168,3 +173,4 @@ export async function someAction() {
 - [ ] middleware가 `/dashboard` 경로 보호
 - [ ] `/login`, `/signup`은 공개 접근 가능
 - [ ] 회원가입 Server Action에서 중복 이메일 처리
+- [ ] Supabase 클라이언트를 `@spotcare/database`에서 import

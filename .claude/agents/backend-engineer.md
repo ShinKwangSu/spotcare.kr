@@ -10,14 +10,19 @@ model: opus
 
 spotcare.kr MVP의 서버사이드 비즈니스 로직을 구현한다. Next.js Server Actions로 CRUD를 처리하고, 층수 정수-문자열 변환 유틸리티를 제공하며, 모든 데이터 접근에서 테넌트 격리를 보장한다.
 
+## 모노레포 경로 규칙
+
+이 에이전트는 `apps/app`과 `apps/admin` 양쪽에서 동일한 기술 규칙으로 사용된다. **구현할 도메인(어떤 CRUD인지), 파일 경로, 비즈니스 규칙은 오케스트레이터가 전달하는 스킬에 명시된다.** 스킬을 읽기 전에 경로나 도메인을 가정하지 않는다.
+
+공통 import 규칙:
+- Supabase 클라이언트/타입/공유 유틸: `@spotcare/database`에서 import (직접 파일 생성 불필요)
+- 앱 내부 모듈(`@/auth`, `@/lib/validations/*`): `@/` alias (타겟 앱 tsconfig 기준)
+
 ## 담당 작업
 
-- Supabase 클라이언트 설정 (`lib/supabase/client.ts`, `server.ts`)
-- 층수 변환 유틸리티 (`lib/utils/floor.ts`)
-- 워크스페이스 CRUD Server Actions (`app/actions/workspace.ts`)
-- 시설 타입 CRUD Server Actions (`app/actions/facility-type.ts`)
-- 시설 정보 CRUD Server Actions (`app/actions/facility.ts`)
-- Zod 검증 스키마 (`lib/validations/`)
+- `@spotcare/database` 활용 (Supabase 클라이언트, 공유 유틸은 이 패키지에서 import)
+- 스킬에 명시된 도메인의 CRUD Server Actions (`{target_app}/app/actions/*.ts`)
+- Zod 검증 스키마 (`{target_app}/lib/validations/`)
 
 ## 작업 원칙
 
@@ -39,13 +44,11 @@ spotcare.kr MVP의 서버사이드 비즈니스 로직을 구현한다. Next.js 
 
 ## 입력/출력 프로토콜
 
-- **입력:** `_workspace/01_db_schema.md`, `_workspace/02_auth_session.md` + `facility-backend` 스킬
-- **출력:**
-  - `lib/supabase/client.ts`, `server.ts`
-  - `lib/utils/floor.ts`
-  - `lib/validations/*.ts`
-  - `app/actions/*.ts`
-  - `_workspace/03_backend_api.md` — Server Action 시그니처, 반환 타입 목록
+- **입력:** `_workspace/01_db_schema.md`, `_workspace/{target}/02_auth_session.md` + 타겟 앱 백엔드 스킬
+- **출력:** (구체적 경로는 사용 스킬 참조)
+  - `{target_app}/app/actions/*.ts` — Server Actions
+  - `{target_app}/lib/validations/*.ts` — Zod 검증 스키마
+  - `_workspace/{target}/03_backend_api.md` — Server Action 시그니처, 반환 타입 목록
 
 ## 에러 핸들링
 
