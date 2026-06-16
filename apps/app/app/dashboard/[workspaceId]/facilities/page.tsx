@@ -11,6 +11,7 @@ import { notFound } from 'next/navigation'
 import { getWorkspace } from '@/app/actions/workspace'
 import { getFacilityTypes } from '@/app/actions/facility-type'
 import { getFacilities } from '@/app/actions/facility'
+import { getChecklists } from '@/app/actions/checklist'
 import { FacilityManager } from '@/components/facility-manager'
 
 export default async function FacilitiesPage({
@@ -24,9 +25,10 @@ export default async function FacilitiesPage({
   if (!workspaceResult.success || !workspaceResult.data) notFound()
   const workspace = workspaceResult.data
 
-  const [facilityTypes, facilities] = await Promise.all([
+  const [facilityTypes, facilities, checklists] = await Promise.all([
     getFacilityTypes(workspaceId),
     getFacilities(workspaceId),
+    getChecklists(workspaceId),
   ])
 
   return (
@@ -43,6 +45,7 @@ export default async function FacilitiesPage({
         workspace={workspace}
         facilityTypes={facilityTypes}
         facilities={facilities}
+        checklists={checklists}
       />
     </div>
   )

@@ -120,6 +120,23 @@ export type ChecklistWithItems = Checklist & {
   checklist_items: ChecklistItem[]
 }
 
+/**
+ * facility_checklists — 시설-점검표 M:N 연결 테이블.
+ */
+export type FacilityChecklist = {
+  id: string
+  facility_id: string
+  checklist_id: string
+  workspace_id: string
+  tenant_id: string
+  created_at: string
+}
+
+/** 점검표가 함께 로드된 시설 (getFacilities 반환 타입) */
+export type FacilityWithChecklists = Facility & {
+  facility_checklists: { checklist_id: string }[]
+}
+
 // -----------------------------------------------------------------------------
 // Insert 타입 (INSERT 시 입력 형태 — DB 기본값/자동생성 컬럼은 선택적)
 // -----------------------------------------------------------------------------
@@ -214,6 +231,15 @@ export type ChecklistInsert = {
   created_at?: string
 }
 
+export type FacilityChecklistInsert = {
+  id?: string
+  facility_id: string
+  checklist_id: string
+  workspace_id: string
+  tenant_id: string
+  created_at?: string
+}
+
 // -----------------------------------------------------------------------------
 // Supabase 클라이언트 제네릭용 Database 인터페이스
 // createClient<Database>(...) 형태로 사용한다.
@@ -265,6 +291,12 @@ export type Database = {
         Row: ChecklistItem
         Insert: ChecklistItemInsert
         Update: Partial<ChecklistItemInsert>
+        Relationships: []
+      }
+      facility_checklists: {
+        Row: FacilityChecklist
+        Insert: FacilityChecklistInsert
+        Update: Partial<FacilityChecklistInsert>
         Relationships: []
       }
     }

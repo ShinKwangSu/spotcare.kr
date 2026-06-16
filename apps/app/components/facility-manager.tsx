@@ -30,7 +30,7 @@ import {
   floorToDisplay,
   generateFloorOptions,
 } from '@/lib/utils/floor'
-import type { Facility, FacilityType, Workspace } from '@/types/database'
+import type { Checklist, Facility, FacilityType, FacilityWithChecklists, Workspace } from '@/types/database'
 import {
   Card,
   CardContent,
@@ -73,6 +73,7 @@ import {
 import { Button } from '@spotcare/ui/components/button'
 import { Input } from '@spotcare/ui/components/input'
 import { Textarea } from '@spotcare/ui/components/textarea'
+import { Checkbox } from '@spotcare/ui/components/checkbox'
 import { ConfirmDeleteButton } from '@/components/confirm-delete-button'
 
 // 클라이언트 검증 스키마.
@@ -88,6 +89,7 @@ const formSchema = z.object({
   facility_type_id: z.string().uuid('시설 타입을 선택해주세요.'),
   location_description: z.string().trim().max(2000).optional(),
   notes: z.string().trim().max(2000).optional(),
+  checklist_ids: z.array(z.string()).default([]),
 })
 
 type FormValues = z.infer<typeof formSchema>
@@ -95,13 +97,15 @@ type FormValues = z.infer<typeof formSchema>
 type Props = {
   workspace: Workspace
   facilityTypes: FacilityType[]
-  facilities: Facility[]
+  facilities: FacilityWithChecklists[]
+  checklists: Checklist[]
 }
 
 export function FacilityManager({
   workspace,
   facilityTypes,
   facilities,
+  checklists,
 }: Props) {
   const typeNameById = new Map(facilityTypes.map((t) => [t.id, t.type_name]))
   const hasTypes = facilityTypes.length > 0
@@ -120,6 +124,7 @@ export function FacilityManager({
           workspace={workspace}
           facilityTypes={facilityTypes}
           floorOptions={floorOptions}
+          checklists={checklists}
           disabled={!canRegister}
         />
       </CardHeader>
@@ -141,6 +146,7 @@ export function FacilityManager({
               workspace={workspace}
               facilityTypes={facilityTypes}
               floorOptions={floorOptions}
+              checklists={checklists}
             />
           </div>
         ) : (
@@ -150,6 +156,7 @@ export function FacilityManager({
                 <TableHead>시설명</TableHead>
                 <TableHead>층</TableHead>
                 <TableHead>시설 타입</TableHead>
+                <TableHead>점검표</TableHead>
                 <TableHead className="hidden md:table-cell">위치 설명</TableHead>
                 <TableHead className="hidden lg:table-cell">비고</TableHead>
                 <TableHead className="text-right">액션</TableHead>
@@ -165,6 +172,11 @@ export function FacilityManager({
                   <TableCell className="text-muted-foreground">
                     {typeNameById.get(f.facility_type_id) ?? '-'}
                   </TableCell>
+                  <TableCell className="text-muted-foreground">
+                    {f.facility_checklists.length > 0
+                      ? `${f.facility_checklists.length}개`
+                      : '-'}
+                  </TableCell>
                   <TableCell className="hidden md:table-cell text-muted-foreground">
                     {f.location_description || '-'}
                   </TableCell>
@@ -177,6 +189,7 @@ export function FacilityManager({
                         workspace={workspace}
                         facilityTypes={facilityTypes}
                         floorOptions={floorOptions}
+                        checklists={checklists}
                         facility={f}
                         trigger={
                           <Button
@@ -209,6 +222,7 @@ function FacilityFormDialog({
   workspace,
   facilityTypes,
   floorOptions,
+  checklists,
   facility,
   trigger,
   disabled,
@@ -216,7 +230,8 @@ function FacilityFormDialog({
   workspace: Workspace
   facilityTypes: FacilityType[]
   floorOptions: { value: number; label: string }[]
-  facility?: Facility
+  checklists: Checklist[]
+  facility?: FacilityWithChecklists
   trigger?: React.ReactNode
   disabled?: boolean
 }) {
@@ -232,6 +247,7 @@ function FacilityFormDialog({
       facility_type_id: facility?.facility_type_id ?? '',
       location_description: facility?.location_description ?? '',
       notes: facility?.notes ?? '',
+      checklist_ids: facility?.facility_checklists?.map((fc) => fc.checklist_id) ?? [],
     },
   })
 
@@ -242,6 +258,7 @@ function FacilityFormDialog({
       facility_type_id: facility?.facility_type_id ?? '',
       location_description: facility?.location_description ?? '',
       notes: facility?.notes ?? '',
+      checklist_ids: facility?.facility_checklists?.map((fc) => fc.checklist_id) ?? [],
     })
   }
 
@@ -252,6 +269,7 @@ function FacilityFormDialog({
     formData.set('facility_type_id', values.facility_type_id)
     formData.set('location_description', values.location_description ?? '')
     formData.set('notes', values.notes ?? '')
+    formData.set('checklist_ids_json', JSON.stringify(values.checklist_ids ?? []))
 
     startTransition(async () => {
       const result = isEdit
@@ -412,6 +430,46 @@ function FacilityFormDialog({
                 </FormItem>
               )}
             />
+
+            {checklists.length > 0 && (
+              <FormField
+                control={form.control}
+                name="checklist_ids"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>
+                      점검표{' '}
+                      <span className="text-muted-foreground">(선택)</span>
+                    </FormLabel>
+                    <div className="space-y-2">
+                      {checklists.map((cl) => (
+                        <div key={cl.id} className="flex items-center gap-2">
+                          <Checkbox
+                            id={`cl-${cl.id}`}
+                            checked={field.value?.includes(cl.id) ?? false}
+                            onCheckedChange={(checked) => {
+                              const current = field.value ?? []
+                              field.onChange(
+                                checked
+                                  ? [...current, cl.id]
+                                  : current.filter((id) => id !== cl.id)
+                              )
+                            }}
+                          />
+                          <label
+                            htmlFor={`cl-${cl.id}`}
+                            className="text-sm cursor-pointer"
+                          >
+                            {cl.checklist_name}
+                          </label>
+                        </div>
+                      ))}
+                    </div>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            )}
 
             <DialogFooter>
               <Button type="submit" disabled={isPending}>

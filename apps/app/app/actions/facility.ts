@@ -18,7 +18,7 @@ import { revalidatePath } from 'next/cache'
 import { auth } from '@/auth'
 import { createClient } from '@/lib/supabase/server'
 import { facilitySchema } from '@/lib/validations/facility'
-import type { Facility } from '@/types/database'
+import type { Facility, FacilityWithChecklists } from '@/types/database'
 import type { ActionResult } from '@/app/actions/workspace'
 
 async function getTenantId(): Promise<string | null> {
@@ -80,21 +80,21 @@ async function assertFacilityTypeOwned(
  */
 export async function getFacilities(
   workspaceId: string
-): Promise<Facility[]> {
+): Promise<FacilityWithChecklists[]> {
   const tenantId = await getTenantId()
   if (!tenantId) return []
 
   const supabase = createClient()
   const { data, error } = await supabase
     .from('facilities')
-    .select('*')
+    .select('*, facility_checklists(checklist_id)')
     .eq('workspace_id', workspaceId)
     .eq('tenant_id', tenantId)
     .order('floor', { ascending: false })
     .order('created_at', { ascending: true })
 
   if (error) return []
-  return data ?? []
+  return (data ?? []) as unknown as FacilityWithChecklists[]
 }
 
 /**
@@ -133,7 +133,8 @@ export async function createFacility(
   const tenantId = await getTenantId()
   if (!tenantId) return { success: false, error: '로그인이 필요합니다.' }
 
-  const parsed = facilitySchema.safeParse(Object.fromEntries(formData))
+  const raw = Object.fromEntries(formData)
+  const parsed = facilitySchema.safeParse(raw)
   if (!parsed.success) {
     const first = parsed.error.issues[0]?.message ?? '입력값을 확인해주세요.'
     return { success: false, error: first }
@@ -141,6 +142,9 @@ export async function createFacility(
 
   const { facility_name, floor, facility_type_id, location_description, notes } =
     parsed.data
+  const checklistIds: string[] = raw.checklist_ids_json
+    ? JSON.parse(raw.checklist_ids_json as string)
+    : []
 
   const supabase = createClient()
 
@@ -178,6 +182,17 @@ export async function createFacility(
     return { success: false, error: '시설 생성 중 오류가 발생했습니다.' }
   }
 
+  if (checklistIds.length > 0) {
+    await supabase.from('facility_checklists').insert(
+      checklistIds.map((checklistId) => ({
+        facility_id: data.id,
+        checklist_id: checklistId,
+        workspace_id: workspaceId,
+        tenant_id: tenantId,
+      }))
+    )
+  }
+
   revalidatePath(facilitiesPath(workspaceId))
   return { success: true, data }
 }
@@ -198,7 +213,8 @@ export async function updateFacility(
   const tenantId = await getTenantId()
   if (!tenantId) return { success: false, error: '로그인이 필요합니다.' }
 
-  const parsed = facilitySchema.safeParse(Object.fromEntries(formData))
+  const raw = Object.fromEntries(formData)
+  const parsed = facilitySchema.safeParse(raw)
   if (!parsed.success) {
     const first = parsed.error.issues[0]?.message ?? '입력값을 확인해주세요.'
     return { success: false, error: first }
@@ -206,6 +222,9 @@ export async function updateFacility(
 
   const { facility_name, floor, facility_type_id, location_description, notes } =
     parsed.data
+  const checklistIds: string[] = raw.checklist_ids_json
+    ? JSON.parse(raw.checklist_ids_json as string)
+    : []
 
   const supabase = createClient()
 
@@ -244,6 +263,24 @@ export async function updateFacility(
   }
   if (!data) {
     return { success: false, error: '시설을 찾을 수 없습니다.' }
+  }
+
+  // 점검표 연결 전체 교체 (삭제 후 재삽입)
+  await supabase
+    .from('facility_checklists')
+    .delete()
+    .eq('facility_id', id)
+    .eq('tenant_id', tenantId)
+
+  if (checklistIds.length > 0) {
+    await supabase.from('facility_checklists').insert(
+      checklistIds.map((checklistId) => ({
+        facility_id: id,
+        checklist_id: checklistId,
+        workspace_id: workspaceId,
+        tenant_id: tenantId,
+      }))
+    )
   }
 
   revalidatePath(facilitiesPath(workspaceId))
