@@ -71,5 +71,6 @@
   }
   body {
     @apply bg-background text-foreground;
+    font-family: var(--font-pretendard), -apple-system, BlinkMacSystemFont, sans-serif;
   }
 }
