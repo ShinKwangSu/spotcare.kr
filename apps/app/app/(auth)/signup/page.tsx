@@ -4,6 +4,7 @@ import { useActionState, useState } from 'react'
 import Link from 'next/link'
 
 import { signUpAction, type AuthActionState } from '@/app/actions/auth'
+import { formatPhone, rawPhone } from '@/lib/utils/phone'
 import {
   Card,
   CardContent,
@@ -36,8 +37,7 @@ export default function SignupPage() {
   const [password, setPassword] = useState('')
 
   function handlePhoneChange(e: React.ChangeEvent<HTMLInputElement>) {
-    const digits = e.target.value.replace(/\D/g, '').slice(0, 11)
-    setPhone(digits)
+    setPhone(formatPhone(e.target.value))
   }
 
   return (
@@ -88,14 +88,15 @@ export default function SignupPage() {
 
             <div className="space-y-2">
               <Label htmlFor="phone">전화번호</Label>
+              {/* 서버에는 하이픈 없는 숫자만 전달 */}
+              <input type="hidden" name="phone" value={rawPhone(phone)} />
               <Input
                 id="phone"
-                name="phone"
                 type="text"
                 inputMode="numeric"
-                placeholder="01012345678"
+                placeholder="010-0000-0000"
                 required
-                maxLength={11}
+                maxLength={13}
                 value={phone}
                 onChange={handlePhoneChange}
                 aria-invalid={!!state?.fieldErrors?.phone}

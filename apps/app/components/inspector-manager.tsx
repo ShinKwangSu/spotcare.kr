@@ -12,6 +12,7 @@ import {
   deleteInspector,
 } from '@/app/actions/inspector'
 import { inspectorSchema, type InspectorInput } from '@/lib/validations/inspector'
+import { formatPhone } from '@/lib/utils/phone'
 import type { Inspector } from '@/types/database'
 import {
   Card,
@@ -130,7 +131,7 @@ function InspectorFormDialog({
     resolver: zodResolver(inspectorSchema),
     defaultValues: {
       name: inspector?.name ?? '',
-      phone: inspector?.phone ?? '',
+      phone: inspector?.phone ? formatPhone(inspector.phone) : '',
       email: inspector?.email ?? '',
     },
   })
@@ -164,7 +165,7 @@ function InspectorFormDialog({
         if (next) {
           form.reset({
             name: inspector?.name ?? '',
-            phone: inspector?.phone ?? '',
+            phone: inspector?.phone ? formatPhone(inspector.phone) : '',
             email: inspector?.email ?? '',
           })
         }
@@ -208,9 +209,11 @@ function InspectorFormDialog({
                   <FormLabel>전화번호</FormLabel>
                   <FormControl>
                     <Input
-                      placeholder="01012345678"
+                      placeholder="010-0000-0000"
                       inputMode="numeric"
+                      maxLength={13}
                       {...field}
+                      onChange={(e) => field.onChange(formatPhone(e.target.value))}
                     />
                   </FormControl>
                   <FormMessage />

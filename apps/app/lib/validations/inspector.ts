@@ -9,7 +9,14 @@ export const inspectorSchema = z.object({
   phone: z
     .string()
     .trim()
-    .regex(/^\d{0,11}$/, '숫자만 입력해주세요(최대 11자리).')
+    // 하이픈 제거 후 검사 — 폼에서 formatPhone 포맷으로 입력되더라도 통과
+    .transform((v) => v.replace(/-/g, ''))
+    .pipe(
+      z
+        .string()
+        .max(11, '전화번호는 11자리 이하여야 합니다.')
+        .regex(/^\d*$/, '전화번호는 숫자만 입력 가능합니다.')
+    )
     .optional()
     .or(z.literal('')),
   email: z
