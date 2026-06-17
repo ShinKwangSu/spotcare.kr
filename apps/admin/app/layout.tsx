@@ -1,6 +1,10 @@
 import type { Metadata } from 'next'
 import localFont from 'next/font/local'
+import { NuqsAdapter } from 'nuqs/adapters/next/app'
 import './globals.css'
+
+import { ReactQueryProvider } from '@/components/providers/react-query-provider'
+import { Toaster } from '@spotcare/ui/components/sonner'
 
 const pretendard = localFont({
   src: '../../../packages/ui/fonts/PretendardVariable.woff2',
@@ -21,7 +25,12 @@ export default function RootLayout({
 }) {
   return (
     <html lang="ko" className={pretendard.variable}>
-      <body>{children}</body>
+      <body>
+        <NuqsAdapter>
+          <ReactQueryProvider>{children}</ReactQueryProvider>
+        </NuqsAdapter>
+        <Toaster richColors position="top-center" />
+      </body>
     </html>
   )
 }

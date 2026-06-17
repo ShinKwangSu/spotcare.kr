@@ -4,6 +4,8 @@
 // 스키마 변경 시 이 파일을 반드시 함께 갱신할 것.
 // =============================================================================
 
+import type { SupabaseClient } from '@supabase/supabase-js'
+
 // -----------------------------------------------------------------------------
 // Row 타입 (DB 에서 SELECT 된 형태)
 // -----------------------------------------------------------------------------
@@ -137,6 +139,26 @@ export type FacilityWithChecklists = Facility & {
   facility_checklists: { checklist_id: string }[]
 }
 
+/**
+ * admins — 플랫폼 운영자(슈퍼어드민, apps/admin).
+ * 테넌트 격리 대상이 아니다(tenant_id 없음). service_role 전용 테이블.
+ * password_hash 는 절대 클라이언트로 전달하지 않는다(서버 전용).
+ */
+export type Admin = {
+  id: string
+  email: string
+  name: string
+  created_at: string
+}
+
+/**
+ * password_hash 를 포함한 서버 전용 Admin 형태.
+ * 로그인 검증 등 서버 컨텍스트에서만 사용한다.
+ */
+export type AdminWithSecret = Admin & {
+  password_hash: string
+}
+
 // -----------------------------------------------------------------------------
 // Insert 타입 (INSERT 시 입력 형태 — DB 기본값/자동생성 컬럼은 선택적)
 // -----------------------------------------------------------------------------
@@ -240,6 +262,17 @@ export type FacilityChecklistInsert = {
   created_at?: string
 }
 
+export type AdminInsert = {
+  id?: string
+  email: string
+  password_hash: string
+  name: string
+  created_at?: string
+}
+
+/** admins Update — id/created_at 은 갱신 대상에서 제외한다. */
+export type AdminUpdate = Partial<Omit<Admin, 'id' | 'created_at'>>
+
 // -----------------------------------------------------------------------------
 // Supabase 클라이언트 제네릭용 Database 인터페이스
 // createClient<Database>(...) 형태로 사용한다.
@@ -299,6 +332,12 @@ export type Database = {
         Update: Partial<FacilityChecklistInsert>
         Relationships: []
       }
+      admins: {
+        Row: AdminWithSecret
+        Insert: AdminInsert
+        Update: Partial<AdminInsert>
+        Relationships: []
+      }
     }
     Functions: {
       app_current_tenant_id: {
@@ -308,3 +347,12 @@ export type Database = {
     }
   }
 }
+
+// -----------------------------------------------------------------------------
+// Supabase 클라이언트 타입 별칭
+// 도메인 repository/service 가 주입받는 클라이언트의 타입.
+// raw `@supabase/supabase-js` 를 앱에서 직접 의존하지 않도록 여기서 재노출한다.
+// -----------------------------------------------------------------------------
+
+/** Database 제네릭이 적용된 Supabase 클라이언트 타입. */
+export type TypedSupabaseClient = SupabaseClient<Database>
