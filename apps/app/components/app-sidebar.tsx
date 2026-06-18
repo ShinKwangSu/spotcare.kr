@@ -20,12 +20,12 @@ import {
   SidebarContent,
   SidebarFooter,
   SidebarGroup,
-  SidebarGroupLabel,
   SidebarHeader,
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
   SidebarSeparator,
+  useSidebar,
 } from "@spotcare/ui/components/sidebar"
 
 type Workspace = { id: string; workspace_name: string }
@@ -51,6 +51,9 @@ export function AppSidebar({ workspaces, user, ...props }: Props) {
     ? workspaces.find((w) => w.id === workspaceId)
     : null
 
+  const { isMobile, setOpenMobile } = useSidebar()
+  const closeOnMobile = () => { if (isMobile) setOpenMobile(false) }
+
   const initials = user.name ? user.name.slice(0, 2).toUpperCase() : "SP"
 
   return (
@@ -58,15 +61,26 @@ export function AppSidebar({ workspaces, user, ...props }: Props) {
       <SidebarHeader>
         <SidebarMenu>
           <SidebarMenuItem>
-            <SidebarMenuButton
-              asChild
-              className="data-[slot=sidebar-menu-button]:!p-1.5"
-            >
-              <Link href="/dashboard/workspaces">
-                <BuildingIcon className="h-5 w-5" />
-                <span className="text-base font-semibold">spotcare.kr</span>
-              </Link>
-            </SidebarMenuButton>
+            {activeWorkspace ? (
+              <SidebarMenuButton
+                className="data-[slot=sidebar-menu-button]:!p-1.5 cursor-default hover:bg-transparent active:bg-transparent"
+              >
+                <BuildingIcon className="h-5 w-5 shrink-0" />
+                <span className="text-lg font-semibold truncate">
+                  {activeWorkspace.workspace_name}
+                </span>
+              </SidebarMenuButton>
+            ) : (
+              <SidebarMenuButton
+                asChild
+                className="data-[slot=sidebar-menu-button]:!p-1.5"
+              >
+                <Link href="/dashboard/workspaces">
+                  <BuildingIcon className="h-5 w-5" />
+                  <span className="text-base font-semibold">spotcare</span>
+                </Link>
+              </SidebarMenuButton>
+            )}
           </SidebarMenuItem>
         </SidebarMenu>
       </SidebarHeader>
@@ -78,9 +92,9 @@ export function AppSidebar({ workspaces, user, ...props }: Props) {
             <SidebarGroup>
               <SidebarMenu>
                 <SidebarMenuItem>
-                  <SidebarMenuButton asChild>
+                  <SidebarMenuButton asChild size="sm" className="text-xs text-muted-foreground" onClick={closeOnMobile}>
                     <Link href="/dashboard/workspaces">
-                      <ArrowLeftIcon />
+                      <ArrowLeftIcon className="h-3.5 w-3.5" />
                       <span>전체 워크스페이스</span>
                     </Link>
                   </SidebarMenuButton>
@@ -91,14 +105,12 @@ export function AppSidebar({ workspaces, user, ...props }: Props) {
             <SidebarSeparator />
 
             <SidebarGroup>
-              <SidebarGroupLabel className="truncate">
-                {activeWorkspace.workspace_name}
-              </SidebarGroupLabel>
               <SidebarMenu>
                 <SidebarMenuItem>
                   <SidebarMenuButton
                     asChild
                     isActive={pathname.includes("/facility-types")}
+                    onClick={closeOnMobile}
                   >
                     <Link href={`/dashboard/${workspaceId}/facility-types`}>
                       <ListIcon />
@@ -110,6 +122,7 @@ export function AppSidebar({ workspaces, user, ...props }: Props) {
                   <SidebarMenuButton
                     asChild
                     isActive={pathname.includes("/facilities") && !pathname.includes("/facility-types")}
+                    onClick={closeOnMobile}
                   >
                     <Link href={`/dashboard/${workspaceId}/facilities`}>
                       <MapPinIcon />
@@ -121,6 +134,7 @@ export function AppSidebar({ workspaces, user, ...props }: Props) {
                   <SidebarMenuButton
                     asChild
                     isActive={pathname.includes("/inspectors")}
+                    onClick={closeOnMobile}
                   >
                     <Link href={`/dashboard/${workspaceId}/inspectors`}>
                       <UsersIcon />
@@ -132,6 +146,7 @@ export function AppSidebar({ workspaces, user, ...props }: Props) {
                   <SidebarMenuButton
                     asChild
                     isActive={pathname.includes("/checklists")}
+                    onClick={closeOnMobile}
                   >
                     <Link href={`/dashboard/${workspaceId}/checklists`}>
                       <ClipboardListIcon />
@@ -150,6 +165,7 @@ export function AppSidebar({ workspaces, user, ...props }: Props) {
                 <SidebarMenuButton
                   asChild
                   isActive={pathname === "/dashboard"}
+                  onClick={closeOnMobile}
                 >
                   <Link href="/dashboard">
                     <LayoutDashboardIcon />
@@ -161,6 +177,7 @@ export function AppSidebar({ workspaces, user, ...props }: Props) {
                 <SidebarMenuButton
                   asChild
                   isActive={pathname === "/dashboard/workspaces"}
+                  onClick={closeOnMobile}
                 >
                   <Link href="/dashboard/workspaces">
                     <LayoutGridIcon />

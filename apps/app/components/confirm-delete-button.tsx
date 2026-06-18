@@ -30,6 +30,8 @@ type Props = {
   description?: string
   successMessage?: string
   trigger?: React.ReactNode
+  open?: boolean
+  onOpenChange?: (open: boolean) => void
 }
 
 export function ConfirmDeleteButton({
@@ -38,8 +40,13 @@ export function ConfirmDeleteButton({
   description = '이 작업은 되돌릴 수 없습니다.',
   successMessage = '삭제했습니다.',
   trigger,
+  open: openProp,
+  onOpenChange,
 }: Props) {
-  const [open, setOpen] = useState(false)
+  const [internalOpen, setInternalOpen] = useState(false)
+  const isControlled = openProp !== undefined
+  const open = isControlled ? openProp! : internalOpen
+  const setOpen = (v: boolean) => { if (!isControlled) setInternalOpen(v); onOpenChange?.(v) }
   const [isPending, startTransition] = useTransition()
 
   function handleDelete() {
@@ -56,13 +63,15 @@ export function ConfirmDeleteButton({
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger asChild>
-        {trigger ?? (
-          <Button variant="ghost" size="icon" aria-label="삭제">
-            <Trash2 className="h-4 w-4 text-destructive" />
-          </Button>
-        )}
-      </DialogTrigger>
+      {!isControlled && (
+        <DialogTrigger asChild>
+          {trigger ?? (
+            <Button variant="ghost" size="icon" aria-label="삭제">
+              <Trash2 className="h-4 w-4 text-destructive" />
+            </Button>
+          )}
+        </DialogTrigger>
+      )}
       <DialogContent className="max-w-sm">
         <DialogHeader>
           <DialogTitle>{title}</DialogTitle>

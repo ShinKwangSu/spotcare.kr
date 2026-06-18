@@ -18,7 +18,7 @@ import { useState, useTransition } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
-import { Plus, Pencil } from 'lucide-react'
+import { Plus, Pencil, MoreVertical, Trash2 } from 'lucide-react'
 import { toast } from 'sonner'
 
 import {
@@ -74,6 +74,12 @@ import { Button } from '@spotcare/ui/components/button'
 import { Input } from '@spotcare/ui/components/input'
 import { Textarea } from '@spotcare/ui/components/textarea'
 import { Checkbox } from '@spotcare/ui/components/checkbox'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@spotcare/ui/components/dropdown-menu'
 import { ConfirmDeleteButton } from '@/components/confirm-delete-button'
 
 // 클라이언트 검증 스키마.
@@ -184,29 +190,13 @@ export function FacilityManager({
                     {f.notes || '-'}
                   </TableCell>
                   <TableCell className="text-right">
-                    <div className="flex items-center justify-end gap-1">
-                      <FacilityFormDialog
-                        workspace={workspace}
-                        facilityTypes={facilityTypes}
-                        floorOptions={floorOptions}
-                        checklists={checklists}
-                        facility={f}
-                        trigger={
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            aria-label="수정"
-                          >
-                            <Pencil className="h-4 w-4" />
-                          </Button>
-                        }
-                      />
-                      <ConfirmDeleteButton
-                        onConfirm={() => deleteFacility(f.id, workspace.id)}
-                        title="시설을 삭제하시겠습니까?"
-                        successMessage="시설을 삭제했습니다."
-                      />
-                    </div>
+                    <FacilityRowActions
+                      workspace={workspace}
+                      facilityTypes={facilityTypes}
+                      floorOptions={floorOptions}
+                      checklists={checklists}
+                      facility={f}
+                    />
                   </TableCell>
                 </TableRow>
               ))}
@@ -226,6 +216,8 @@ function FacilityFormDialog({
   facility,
   trigger,
   disabled,
+  open: openProp,
+  onOpenChange,
 }: {
   workspace: Workspace
   facilityTypes: FacilityType[]
@@ -234,8 +226,13 @@ function FacilityFormDialog({
   facility?: FacilityWithChecklists
   trigger?: React.ReactNode
   disabled?: boolean
+  open?: boolean
+  onOpenChange?: (open: boolean) => void
 }) {
-  const [open, setOpen] = useState(false)
+  const [internalOpen, setInternalOpen] = useState(false)
+  const isControlled = openProp !== undefined
+  const open = isControlled ? openProp! : internalOpen
+  const setOpen = (v: boolean) => { if (!isControlled) setInternalOpen(v); onOpenChange?.(v) }
   const [isPending, startTransition] = useTransition()
   const isEdit = !!facility
 
@@ -294,14 +291,16 @@ function FacilityFormDialog({
         if (next) resetForm()
       }}
     >
-      <DialogTrigger asChild>
-        {trigger ?? (
-          <Button size="sm" disabled={disabled}>
-            <Plus className="h-4 w-4" />
-            시설 등록
-          </Button>
-        )}
-      </DialogTrigger>
+      {!isControlled && (
+        <DialogTrigger asChild>
+          {trigger ?? (
+            <Button size="sm" disabled={disabled}>
+              <Plus className="h-4 w-4" />
+              시설 등록
+            </Button>
+          )}
+        </DialogTrigger>
+      )}
       <DialogContent>
         <DialogHeader>
           <DialogTitle>{isEdit ? '시설 수정' : '시설 등록'}</DialogTitle>
@@ -480,5 +479,63 @@ function FacilityFormDialog({
         </Form>
       </DialogContent>
     </Dialog>
+  )
+}
+
+function FacilityRowActions({
+  workspace,
+  facilityTypes,
+  floorOptions,
+  checklists,
+  facility,
+}: {
+  workspace: Workspace
+  facilityTypes: FacilityType[]
+  floorOptions: { value: number; label: string }[]
+  checklists: Checklist[]
+  facility: FacilityWithChecklists
+}) {
+  const [editOpen, setEditOpen] = useState(false)
+  const [deleteOpen, setDeleteOpen] = useState(false)
+
+  return (
+    <>
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <Button variant="ghost" size="icon" aria-label="더 보기">
+            <MoreVertical className="h-4 w-4" />
+          </Button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end">
+          <DropdownMenuItem onSelect={() => setEditOpen(true)}>
+            <Pencil className="mr-2 h-4 w-4" />
+            수정
+          </DropdownMenuItem>
+          <DropdownMenuItem
+            onSelect={() => setDeleteOpen(true)}
+            className="text-destructive focus:text-destructive"
+          >
+            <Trash2 className="mr-2 h-4 w-4" />
+            삭제
+          </DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
+      <FacilityFormDialog
+        workspace={workspace}
+        facilityTypes={facilityTypes}
+        floorOptions={floorOptions}
+        checklists={checklists}
+        facility={facility}
+        open={editOpen}
+        onOpenChange={setEditOpen}
+      />
+      <ConfirmDeleteButton
+        onConfirm={() => deleteFacility(facility.id, workspace.id)}
+        title="시설을 삭제하시겠습니까?"
+        successMessage="시설을 삭제했습니다."
+        open={deleteOpen}
+        onOpenChange={setDeleteOpen}
+      />
+    </>
   )
 }

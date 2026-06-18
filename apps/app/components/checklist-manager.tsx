@@ -3,7 +3,7 @@
 import { useState, useTransition } from 'react'
 import { useForm, useFieldArray } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
-import { Plus, Pencil, Trash2 } from 'lucide-react'
+import { Plus, Pencil, MoreVertical, Trash2 } from 'lucide-react'
 import { toast } from 'sonner'
 
 import {
@@ -56,6 +56,12 @@ import { Button } from '@spotcare/ui/components/button'
 import { Input } from '@spotcare/ui/components/input'
 import { Textarea } from '@spotcare/ui/components/textarea'
 import { Checkbox } from '@spotcare/ui/components/checkbox'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@spotcare/ui/components/dropdown-menu'
 import { ConfirmDeleteButton } from '@/components/confirm-delete-button'
 
 
@@ -122,25 +128,7 @@ export function ChecklistManager({ workspaceId, checklists }: Props) {
                   <TableCell>{checklist.count}회</TableCell>
                   <TableCell>{checklist.checklist_items.length}개</TableCell>
                   <TableCell className="text-right">
-                    <div className="flex items-center justify-end gap-1">
-                      <ChecklistFormDialog
-                        workspaceId={workspaceId}
-                        checklist={checklist}
-                        trigger={
-                          <Button variant="ghost" size="icon" aria-label="수정">
-                            <Pencil className="h-4 w-4" />
-                          </Button>
-                        }
-                      />
-                      <ConfirmDeleteButton
-                        onConfirm={() =>
-                          deleteChecklist(checklist.id, workspaceId)
-                        }
-                        title="점검표를 삭제하시겠습니까?"
-                        description="삭제한 점검표와 모든 항목은 복구할 수 없습니다."
-                        successMessage="점검표를 삭제했습니다."
-                      />
-                    </div>
+                    <ChecklistRowActions workspaceId={workspaceId} checklist={checklist} />
                   </TableCell>
                 </TableRow>
               ))}
@@ -173,12 +161,19 @@ function ChecklistFormDialog({
   workspaceId,
   checklist,
   trigger,
+  open: openProp,
+  onOpenChange,
 }: {
   workspaceId: string
   checklist?: ChecklistWithItems
   trigger?: React.ReactNode
+  open?: boolean
+  onOpenChange?: (open: boolean) => void
 }) {
-  const [open, setOpen] = useState(false)
+  const [internalOpen, setInternalOpen] = useState(false)
+  const isControlled = openProp !== undefined
+  const open = isControlled ? openProp! : internalOpen
+  const setOpen = (v: boolean) => { if (!isControlled) setInternalOpen(v); onOpenChange?.(v) }
   const [isPending, startTransition] = useTransition()
   const isEdit = !!checklist
 
@@ -228,14 +223,16 @@ function ChecklistFormDialog({
         if (next) form.reset(buildDefaultValues(checklist))
       }}
     >
-      <DialogTrigger asChild>
-        {trigger ?? (
-          <Button size="sm">
-            <Plus className="h-4 w-4" />
-            점검표 추가
-          </Button>
-        )}
-      </DialogTrigger>
+      {!isControlled && (
+        <DialogTrigger asChild>
+          {trigger ?? (
+            <Button size="sm">
+              <Plus className="h-4 w-4" />
+              점검표 추가
+            </Button>
+          )}
+        </DialogTrigger>
+      )}
       <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>{isEdit ? '점검표 수정' : '점검표 추가'}</DialogTitle>
@@ -438,5 +435,55 @@ function ChecklistFormDialog({
         </Form>
       </DialogContent>
     </Dialog>
+  )
+}
+
+function ChecklistRowActions({
+  workspaceId,
+  checklist,
+}: {
+  workspaceId: string
+  checklist: ChecklistWithItems
+}) {
+  const [editOpen, setEditOpen] = useState(false)
+  const [deleteOpen, setDeleteOpen] = useState(false)
+
+  return (
+    <>
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <Button variant="ghost" size="icon" aria-label="더 보기">
+            <MoreVertical className="h-4 w-4" />
+          </Button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end">
+          <DropdownMenuItem onSelect={() => setEditOpen(true)}>
+            <Pencil className="mr-2 h-4 w-4" />
+            수정
+          </DropdownMenuItem>
+          <DropdownMenuItem
+            onSelect={() => setDeleteOpen(true)}
+            className="text-destructive focus:text-destructive"
+          >
+            <Trash2 className="mr-2 h-4 w-4" />
+            삭제
+          </DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
+      <ChecklistFormDialog
+        workspaceId={workspaceId}
+        checklist={checklist}
+        open={editOpen}
+        onOpenChange={setEditOpen}
+      />
+      <ConfirmDeleteButton
+        onConfirm={() => deleteChecklist(checklist.id, workspaceId)}
+        title="점검표를 삭제하시겠습니까?"
+        description="삭제한 점검표와 모든 항목은 복구할 수 없습니다."
+        successMessage="점검표를 삭제했습니다."
+        open={deleteOpen}
+        onOpenChange={setDeleteOpen}
+      />
+    </>
   )
 }

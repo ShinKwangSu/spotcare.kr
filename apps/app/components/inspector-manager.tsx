@@ -3,7 +3,7 @@
 import { useState, useTransition } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
-import { Plus, Pencil } from 'lucide-react'
+import { Plus, Pencil, MoreVertical, Trash2 } from 'lucide-react'
 import { toast } from 'sonner'
 
 import {
@@ -49,6 +49,12 @@ import {
 } from '@spotcare/ui/components/form'
 import { Button } from '@spotcare/ui/components/button'
 import { Input } from '@spotcare/ui/components/input'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@spotcare/ui/components/dropdown-menu'
 import { ConfirmDeleteButton } from '@/components/confirm-delete-button'
 
 type Props = {
@@ -91,23 +97,7 @@ export function InspectorManager({ workspaceId, inspectors }: Props) {
                   <TableCell>{inspector.phone ? formatPhone(inspector.phone) : '-'}</TableCell>
                   <TableCell>{inspector.email ?? '-'}</TableCell>
                   <TableCell className="text-right">
-                    <div className="flex items-center justify-end gap-1">
-                      <InspectorFormDialog
-                        workspaceId={workspaceId}
-                        inspector={inspector}
-                        trigger={
-                          <Button variant="ghost" size="icon" aria-label="수정">
-                            <Pencil className="h-4 w-4" />
-                          </Button>
-                        }
-                      />
-                      <ConfirmDeleteButton
-                        onConfirm={() => deleteInspector(inspector.id, workspaceId)}
-                        title="점검자를 삭제하시겠습니까?"
-                        description="삭제한 점검자 정보는 복구할 수 없습니다."
-                        successMessage="점검자를 삭제했습니다."
-                      />
-                    </div>
+                    <InspectorRowActions workspaceId={workspaceId} inspector={inspector} />
                   </TableCell>
                 </TableRow>
               ))}
@@ -123,12 +113,19 @@ function InspectorFormDialog({
   workspaceId,
   inspector,
   trigger,
+  open: openProp,
+  onOpenChange,
 }: {
   workspaceId: string
   inspector?: Inspector
   trigger?: React.ReactNode
+  open?: boolean
+  onOpenChange?: (open: boolean) => void
 }) {
-  const [open, setOpen] = useState(false)
+  const [internalOpen, setInternalOpen] = useState(false)
+  const isControlled = openProp !== undefined
+  const open = isControlled ? openProp! : internalOpen
+  const setOpen = (v: boolean) => { if (!isControlled) setInternalOpen(v); onOpenChange?.(v) }
   const [isPending, startTransition] = useTransition()
   const isEdit = !!inspector
 
@@ -176,14 +173,16 @@ function InspectorFormDialog({
         }
       }}
     >
-      <DialogTrigger asChild>
-        {trigger ?? (
-          <Button size="sm">
-            <Plus className="h-4 w-4" />
-            점검자 추가
-          </Button>
-        )}
-      </DialogTrigger>
+      {!isControlled && (
+        <DialogTrigger asChild>
+          {trigger ?? (
+            <Button size="sm">
+              <Plus className="h-4 w-4" />
+              점검자 추가
+            </Button>
+          )}
+        </DialogTrigger>
+      )}
       <DialogContent className="max-w-md">
         <DialogHeader>
           <DialogTitle>{isEdit ? '점검자 수정' : '점검자 추가'}</DialogTitle>
@@ -251,5 +250,55 @@ function InspectorFormDialog({
         </Form>
       </DialogContent>
     </Dialog>
+  )
+}
+
+function InspectorRowActions({
+  workspaceId,
+  inspector,
+}: {
+  workspaceId: string
+  inspector: Inspector
+}) {
+  const [editOpen, setEditOpen] = useState(false)
+  const [deleteOpen, setDeleteOpen] = useState(false)
+
+  return (
+    <>
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <Button variant="ghost" size="icon" aria-label="더 보기">
+            <MoreVertical className="h-4 w-4" />
+          </Button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end">
+          <DropdownMenuItem onSelect={() => setEditOpen(true)}>
+            <Pencil className="mr-2 h-4 w-4" />
+            수정
+          </DropdownMenuItem>
+          <DropdownMenuItem
+            onSelect={() => setDeleteOpen(true)}
+            className="text-destructive focus:text-destructive"
+          >
+            <Trash2 className="mr-2 h-4 w-4" />
+            삭제
+          </DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
+      <InspectorFormDialog
+        workspaceId={workspaceId}
+        inspector={inspector}
+        open={editOpen}
+        onOpenChange={setEditOpen}
+      />
+      <ConfirmDeleteButton
+        onConfirm={() => deleteInspector(inspector.id, workspaceId)}
+        title="점검자를 삭제하시겠습니까?"
+        description="삭제한 점검자 정보는 복구할 수 없습니다."
+        successMessage="점검자를 삭제했습니다."
+        open={deleteOpen}
+        onOpenChange={setDeleteOpen}
+      />
+    </>
   )
 }

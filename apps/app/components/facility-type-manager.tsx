@@ -14,7 +14,7 @@
 import { useState, useTransition } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
-import { Plus, Pencil } from 'lucide-react'
+import { Plus, Pencil, MoreVertical, Trash2 } from 'lucide-react'
 import { toast } from 'sonner'
 
 import {
@@ -61,6 +61,12 @@ import {
 } from '@spotcare/ui/components/form'
 import { Button } from '@spotcare/ui/components/button'
 import { Input } from '@spotcare/ui/components/input'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@spotcare/ui/components/dropdown-menu'
 import { ConfirmDeleteButton } from '@/components/confirm-delete-button'
 
 type Props = {
@@ -101,29 +107,7 @@ export function FacilityTypeManager({ workspaceId, facilityTypes }: Props) {
                     {type.type_name}
                   </TableCell>
                   <TableCell className="text-right">
-                    <div className="flex items-center justify-end gap-1">
-                      <TypeFormDialog
-                        workspaceId={workspaceId}
-                        facilityType={type}
-                        trigger={
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            aria-label="수정"
-                          >
-                            <Pencil className="h-4 w-4" />
-                          </Button>
-                        }
-                      />
-                      <ConfirmDeleteButton
-                        onConfirm={() =>
-                          deleteFacilityType(type.id, workspaceId)
-                        }
-                        title="시설 타입을 삭제하시겠습니까?"
-                        description="이 타입을 사용하는 시설이 있으면 삭제할 수 없습니다."
-                        successMessage="시설 타입을 삭제했습니다."
-                      />
-                    </div>
+                    <TypeRowActions workspaceId={workspaceId} facilityType={type} />
                   </TableCell>
                 </TableRow>
               ))}
@@ -139,12 +123,19 @@ function TypeFormDialog({
   workspaceId,
   facilityType,
   trigger,
+  open: openProp,
+  onOpenChange,
 }: {
   workspaceId: string
   facilityType?: FacilityType
   trigger?: React.ReactNode
+  open?: boolean
+  onOpenChange?: (open: boolean) => void
 }) {
-  const [open, setOpen] = useState(false)
+  const [internalOpen, setInternalOpen] = useState(false)
+  const isControlled = openProp !== undefined
+  const open = isControlled ? openProp! : internalOpen
+  const setOpen = (v: boolean) => { if (!isControlled) setInternalOpen(v); onOpenChange?.(v) }
   const [isPending, startTransition] = useTransition()
   const isEdit = !!facilityType
 
@@ -181,14 +172,16 @@ function TypeFormDialog({
           form.reset({ type_name: facilityType?.type_name ?? '' })
       }}
     >
-      <DialogTrigger asChild>
-        {trigger ?? (
-          <Button size="sm">
-            <Plus className="h-4 w-4" />
-            타입 추가
-          </Button>
-        )}
-      </DialogTrigger>
+      {!isControlled && (
+        <DialogTrigger asChild>
+          {trigger ?? (
+            <Button size="sm">
+              <Plus className="h-4 w-4" />
+              타입 추가
+            </Button>
+          )}
+        </DialogTrigger>
+      )}
       <DialogContent className="max-w-md">
         <DialogHeader>
           <DialogTitle>
@@ -222,5 +215,55 @@ function TypeFormDialog({
         </Form>
       </DialogContent>
     </Dialog>
+  )
+}
+
+function TypeRowActions({
+  workspaceId,
+  facilityType,
+}: {
+  workspaceId: string
+  facilityType: FacilityType
+}) {
+  const [editOpen, setEditOpen] = useState(false)
+  const [deleteOpen, setDeleteOpen] = useState(false)
+
+  return (
+    <>
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <Button variant="ghost" size="icon" aria-label="더 보기">
+            <MoreVertical className="h-4 w-4" />
+          </Button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end">
+          <DropdownMenuItem onSelect={() => setEditOpen(true)}>
+            <Pencil className="mr-2 h-4 w-4" />
+            수정
+          </DropdownMenuItem>
+          <DropdownMenuItem
+            onSelect={() => setDeleteOpen(true)}
+            className="text-destructive focus:text-destructive"
+          >
+            <Trash2 className="mr-2 h-4 w-4" />
+            삭제
+          </DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
+      <TypeFormDialog
+        workspaceId={workspaceId}
+        facilityType={facilityType}
+        open={editOpen}
+        onOpenChange={setEditOpen}
+      />
+      <ConfirmDeleteButton
+        onConfirm={() => deleteFacilityType(facilityType.id, workspaceId)}
+        title="시설 타입을 삭제하시겠습니까?"
+        description="이 타입을 사용하는 시설이 있으면 삭제할 수 없습니다."
+        successMessage="시설 타입을 삭제했습니다."
+        open={deleteOpen}
+        onOpenChange={setDeleteOpen}
+      />
+    </>
   )
 }

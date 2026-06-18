@@ -61,14 +61,17 @@ const formSchema = z.object({
 type FormValues = z.infer<typeof formSchema>
 
 type Props = {
-  // 수정 모드면 기존 워크스페이스 전달. (없으면 생성 모드)
   workspace?: Workspace
-  // 커스텀 트리거. 없으면 기본 [워크스페이스 추가] 버튼 렌더.
   trigger?: React.ReactNode
+  open?: boolean
+  onOpenChange?: (open: boolean) => void
 }
 
-export function WorkspaceFormDialog({ workspace, trigger }: Props) {
-  const [open, setOpen] = useState(false)
+export function WorkspaceFormDialog({ workspace, trigger, open: openProp, onOpenChange }: Props) {
+  const [internalOpen, setInternalOpen] = useState(false)
+  const isControlled = openProp !== undefined
+  const open = isControlled ? openProp! : internalOpen
+  const setOpen = (v: boolean) => { if (!isControlled) setInternalOpen(v); onOpenChange?.(v) }
   const [isPending, startTransition] = useTransition()
   const isEdit = !!workspace
 
@@ -111,14 +114,16 @@ export function WorkspaceFormDialog({ workspace, trigger }: Props) {
         if (next && !isEdit) form.reset()
       }}
     >
-      <DialogTrigger asChild>
-        {trigger ?? (
-          <Button>
-            <Plus className="h-4 w-4" />
-            워크스페이스 추가
-          </Button>
-        )}
-      </DialogTrigger>
+      {!isControlled && (
+        <DialogTrigger asChild>
+          {trigger ?? (
+            <Button>
+              <Plus className="h-4 w-4" />
+              워크스페이스 추가
+            </Button>
+          )}
+        </DialogTrigger>
+      )}
       <DialogContent>
         <DialogHeader>
           <DialogTitle>
@@ -149,19 +154,19 @@ export function WorkspaceFormDialog({ workspace, trigger }: Props) {
             <div className="grid grid-cols-2 gap-4">
               <FormField
                 control={form.control}
-                name="max_floor"
+                name="min_floor"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>지상 최고 층</FormLabel>
+                    <FormLabel>지하 최저 층</FormLabel>
                     <FormControl>
                       <div className="flex items-center gap-2">
                         <span className="text-sm text-muted-foreground">
-                          지상
+                          지하
                         </span>
                         <Input
                           type="number"
                           min={0}
-                          max={200}
+                          max={50}
                           className="w-20"
                           {...field}
                         />
@@ -177,19 +182,19 @@ export function WorkspaceFormDialog({ workspace, trigger }: Props) {
 
               <FormField
                 control={form.control}
-                name="min_floor"
+                name="max_floor"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>지하 최저 층</FormLabel>
+                    <FormLabel>지상 최고 층</FormLabel>
                     <FormControl>
                       <div className="flex items-center gap-2">
                         <span className="text-sm text-muted-foreground">
-                          지하
+                          지상
                         </span>
                         <Input
                           type="number"
                           min={0}
-                          max={50}
+                          max={200}
                           className="w-20"
                           {...field}
                         />
