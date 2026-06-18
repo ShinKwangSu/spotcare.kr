@@ -61,20 +61,22 @@ export default async function WorkspacesPage() {
               >
                 <Link
                   href={`/dashboard/${ws.id}/facilities`}
-                  className="absolute inset-0 z-0 rounded-[inherit]"
+                  className="absolute inset-0 z-[1] rounded-[inherit]"
                   aria-label={`${ws.workspace_name} 관리`}
                 />
-                <CardHeader className="relative z-10 flex flex-row items-start justify-between space-y-0 pb-2">
+                <CardHeader className="flex flex-row items-start justify-between space-y-0 pb-2">
                   <div className="space-y-1">
                     <CardTitle className="text-base leading-tight">
                       {ws.workspace_name}
                     </CardTitle>
                     <CardDescription>{floorRange}</CardDescription>
                   </div>
-                  <WorkspaceRowActions workspace={ws} />
+                  <div className="relative z-[2]">
+                    <WorkspaceRowActions workspace={ws} />
+                  </div>
                 </CardHeader>
 
-                <CardContent className="relative z-10 flex-1">
+                <CardContent className="flex-1">
                   <div className="flex items-center gap-2 rounded-md bg-muted/50 px-3 py-2 text-sm text-muted-foreground transition-colors group-hover:bg-muted">
                     <BuildingIcon className="h-4 w-4 shrink-0" />
                     <span>

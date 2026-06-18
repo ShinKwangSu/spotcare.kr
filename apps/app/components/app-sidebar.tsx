@@ -5,10 +5,10 @@ import Link from "next/link"
 import { usePathname } from "next/navigation"
 import {
   ArrowLeftIcon,
+  Building2Icon,
   BuildingIcon,
   ClipboardListIcon,
   LayoutDashboardIcon,
-  LayoutGridIcon,
   ListIcon,
   MapPinIcon,
   UsersIcon,
@@ -180,7 +180,7 @@ export function AppSidebar({ workspaces, user, ...props }: Props) {
                   onClick={closeOnMobile}
                 >
                   <Link href="/dashboard/workspaces">
-                    <LayoutGridIcon />
+                    <Building2Icon />
                     <span>워크스페이스 목록</span>
                   </Link>
                 </SidebarMenuButton>
