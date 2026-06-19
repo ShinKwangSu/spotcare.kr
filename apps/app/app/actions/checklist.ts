@@ -132,27 +132,62 @@ export async function updateChecklist(
 
   if (error) return { success: false, error: '점검표 수정 중 오류가 발생했습니다.' }
 
-  // 기존 활성 항목 소프트 딜리트 후 새 항목 삽입
-  await supabase
+  // 기존 활성 항목 ID 조회
+  const { data: existingRows } = await supabase
     .from('checklist_items')
-    .update({ deleted_at: new Date().toISOString() })
+    .select('id')
     .eq('checklist_id', id)
     .eq('tenant_id', tenantId)
     .is('deleted_at', null)
 
-  const { error: itemsError } = await supabase.from('checklist_items').insert(
-    items.map((item, idx) => ({
-      checklist_id: id,
-      workspace_id: workspaceId,
-      tenant_id: tenantId,
-      item_name: item.item_name,
-      response_type: item.response_type,
-      is_required: item.is_required,
-      sort_order: idx,
-    }))
+  const existingIds = new Set((existingRows ?? []).map((i) => i.id))
+  const formIds = new Set(items.filter((i) => i.id).map((i) => i.id as string))
+  const now = new Date().toISOString()
+
+  // 폼에서 제거된 항목 소프트 딜리트
+  const toDelete = [...existingIds].filter((eid) => !formIds.has(eid))
+  if (toDelete.length > 0) {
+    await supabase
+      .from('checklist_items')
+      .update({ deleted_at: now })
+      .in('id', toDelete)
+      .eq('tenant_id', tenantId)
+  }
+
+  // 기존 항목 업데이트 (UUID 유지)
+  const toUpdate = items.filter((i) => i.id && existingIds.has(i.id))
+  await Promise.all(
+    toUpdate.map((item) =>
+      supabase
+        .from('checklist_items')
+        .update({
+          item_name: item.item_name,
+          response_type: item.response_type,
+          is_required: item.is_required,
+          sort_order: items.indexOf(item),
+        })
+        .eq('id', item.id!)
+        .eq('tenant_id', tenantId)
+        .is('deleted_at', null)
+    )
   )
 
-  if (itemsError) return { success: false, error: '항목 저장 중 오류가 발생했습니다.' }
+  // 새 항목만 INSERT
+  const toInsert = items.filter((i) => !i.id)
+  if (toInsert.length > 0) {
+    const { error: itemsError } = await supabase.from('checklist_items').insert(
+      toInsert.map((item) => ({
+        checklist_id: id,
+        workspace_id: workspaceId,
+        tenant_id: tenantId,
+        item_name: item.item_name,
+        response_type: item.response_type,
+        is_required: item.is_required,
+        sort_order: items.indexOf(item),
+      }))
+    )
+    if (itemsError) return { success: false, error: '항목 저장 중 오류가 발생했습니다.' }
+  }
 
   revalidatePath(checklistsPath(workspaceId))
   return { success: true }

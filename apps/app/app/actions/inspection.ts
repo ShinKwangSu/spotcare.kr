@@ -362,8 +362,9 @@ export async function getInspectionHistory(
   return sessions.map((s) => {
     const result = resultMap.get(s.id)
     const inspector = s.inspector_id ? inspectorMap.get(s.inspector_id) : null
-    const values = Object.values(result?.item_results ?? {}) as boolean[]
-    const passCount = values.filter(Boolean).length
+    const values = Object.values(result?.item_results ?? {}) as (boolean | string)[]
+    const passCount = values.filter((v) => v === true || (typeof v === 'string' && v.length > 0)).length
+    const failCount = values.filter((v) => v === false).length
 
     return {
       session_id: s.id,
@@ -371,7 +372,7 @@ export async function getInspectionHistory(
       inspector_name: inspector?.name ?? null,
       inspector_phone: inspector?.phone ?? null,
       pass_count: passCount,
-      fail_count: values.length - passCount,
+      fail_count: failCount,
       total_count: values.length,
     }
   })
@@ -422,7 +423,7 @@ export async function getInspectionDetail(
   if (fcRes.data?.checklist_id) {
     const { data: items } = await supabase
       .from('checklist_items')
-      .select('id, item_name, is_required, sort_order, deleted_at')
+      .select('id, item_name, response_type, is_required, sort_order, deleted_at')
       .eq('checklist_id', fcRes.data.checklist_id)
       .order('sort_order', { ascending: true })
     allItems = (items ?? []) as ChecklistItem[]
@@ -435,7 +436,7 @@ export async function getInspectionDetail(
     submitted_at: resultRes.data?.submitted_at ?? session.completed_at ?? '',
     inspector_name: inspectorRes.data?.name ?? null,
     inspector_phone: inspectorRes.data?.phone ?? null,
-    items: allItems.map((item) => ({
+    items: allItems.filter((item) => item.id in itemResults).map((item) => ({
       id: item.id,
       item_name: item.item_name,
       response_type: item.response_type,

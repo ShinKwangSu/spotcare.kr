@@ -6,6 +6,7 @@
 
 import { useState, useEffect, useCallback } from 'react'
 import { ClipboardList, ArrowLeft, CheckCircle2, XCircle, MinusCircle, User, Phone } from 'lucide-react'
+import { Dialog, DialogContent } from '@spotcare/ui/components/dialog'
 import {
   Sheet,
   SheetContent,
@@ -153,6 +154,7 @@ function HistoryDetail({
 }) {
   const [detail, setDetail] = useState<InspectionHistoryDetail | null>(null)
   const [loading, setLoading] = useState(true)
+  const [lightbox, setLightbox] = useState<string | null>(null)
 
   useEffect(() => {
     setLoading(true)
@@ -163,6 +165,15 @@ function HistoryDetail({
   }, [sessionId, facilityId])
 
   return (
+    <>
+    <Dialog open={!!lightbox} onOpenChange={(open) => { if (!open) setLightbox(null) }}>
+      <DialogContent className="max-w-screen-md p-0 overflow-hidden bg-black border-0">
+        {lightbox && (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img src={lightbox} alt="확대 보기" className="w-full h-auto" />
+        )}
+      </DialogContent>
+    </Dialog>
     <div className="space-y-4 pt-4">
       <Button variant="ghost" size="sm" onClick={onBack} className="-ml-2">
         <ArrowLeft className="mr-1.5 h-4 w-4" />
@@ -244,7 +255,8 @@ function HistoryDetail({
                       <img
                         src={item.result}
                         alt={item.item_name}
-                        className="w-full max-h-48 rounded-md object-cover"
+                        className="w-full h-auto rounded-md cursor-pointer"
+                        onClick={() => setLightbox(item.result as string)}
                       />
                     )}
                   </li>
@@ -255,6 +267,7 @@ function HistoryDetail({
         </>
       )}
     </div>
+    </>
   )
 }
 

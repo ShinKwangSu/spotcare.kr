@@ -149,6 +149,7 @@ function buildDefaultValues(checklist?: ChecklistWithItems): ChecklistInput {
     days: checklist?.days ?? [],
     items: checklist?.checklist_items.length
       ? checklist.checklist_items.map((i) => ({
+          id: i.id,
           item_name: i.item_name,
           response_type: i.response_type,
           is_required: i.is_required,

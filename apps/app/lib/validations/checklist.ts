@@ -1,6 +1,7 @@
 import { z } from 'zod'
 
 export const checklistItemInputSchema = z.object({
+  id: z.string().uuid().optional(),
   item_name: z
     .string()
     .trim()

@@ -12,6 +12,7 @@ import { toast } from 'sonner'
 import { submitInspection, uploadInspectionPhoto } from '@/app/actions/inspection'
 import type { ChecklistItem } from '@/types/database'
 import { Button } from '@spotcare/ui/components/button'
+import { Dialog, DialogContent } from '@spotcare/ui/components/dialog'
 
 type Props = {
   sessionId: string
@@ -176,6 +177,7 @@ function PhotoItem({
   onClear: () => void
 }) {
   const inputRef = useRef<HTMLInputElement>(null)
+  const [lightbox, setLightbox] = useState(false)
   const hasPhoto = value.length > 0
 
   return (
@@ -198,7 +200,8 @@ function PhotoItem({
           <img
             src={value}
             alt={item.item_name}
-            className="w-full max-h-48 object-cover rounded-md"
+            className="w-full h-auto rounded-md cursor-pointer"
+            onClick={() => setLightbox(true)}
           />
           <button
             type="button"
@@ -210,8 +213,14 @@ function PhotoItem({
           </button>
           <div className="flex items-center gap-1.5 mt-1.5 text-xs text-green-600">
             <CheckCircle2 className="h-3.5 w-3.5" />
-            사진 등록 완료
+            사진 등록 완료 (눌러서 크게 보기)
           </div>
+          <Dialog open={lightbox} onOpenChange={setLightbox}>
+            <DialogContent className="max-w-screen-md p-0 overflow-hidden bg-black border-0">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={value} alt={item.item_name} className="w-full h-auto" />
+            </DialogContent>
+          </Dialog>
         </div>
       ) : (
         <button
