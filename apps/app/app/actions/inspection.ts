@@ -63,6 +63,7 @@ export async function createInspectionSession(
     .from('facilities')
     .select('id')
     .eq('id', facilityId)
+    .is('deleted_at', null)
     .maybeSingle()
 
   if (!facilityRow) return { success: false, reason: 'not_found' }
@@ -130,6 +131,7 @@ export async function getInspectionSession(
     .from('facilities')
     .select('*')
     .eq('id', facilityId)
+    .is('deleted_at', null)
     .maybeSingle()
 
   if (!facility) return { valid: false, reason: 'not_found' }
@@ -146,6 +148,7 @@ export async function getInspectionSession(
     .from('checklist_items')
     .select('*')
     .eq('checklist_id', fcRow.checklist_id)
+    .is('deleted_at', null)
     .order('sort_order', { ascending: true })
 
   return {
@@ -224,6 +227,7 @@ export async function verifyAndCreateSession(
     .from('facilities')
     .select('id, workspace_id')
     .eq('id', facilityId)
+    .is('deleted_at', null)
     .maybeSingle()
 
   if (!facility) return { success: false, reason: 'not_found' }
@@ -241,6 +245,7 @@ export async function verifyAndCreateSession(
     .from('inspectors')
     .select('id')
     .eq('workspace_id', facility.workspace_id)
+    .is('deleted_at', null)
     .like('phone', `%${phoneLast4}`)
     .limit(1)
     .maybeSingle()
@@ -276,7 +281,7 @@ export async function getInspectStatus(
 
   const [facilityRes, lastRes, dailyRes, weeklyRes, monthlyRes, fcRes] =
     await Promise.all([
-      supabase.from('facilities').select('*').eq('id', facilityId).maybeSingle(),
+      supabase.from('facilities').select('*').eq('id', facilityId).is('deleted_at', null).maybeSingle(),
       supabase
         .from('inspection_results')
         .select('submitted_at')
@@ -314,6 +319,7 @@ export async function getInspectStatus(
       .from('checklist_items')
       .select('*')
       .eq('checklist_id', fcRes.data.checklist_id)
+      .is('deleted_at', null)
       .order('sort_order', { ascending: true })
     checklistItems = (items ?? []) as ChecklistItem[]
   }

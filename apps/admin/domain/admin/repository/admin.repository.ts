@@ -35,6 +35,7 @@ export const adminRepository = {
     const { data, count, error } = await supabase
       .from('admins')
       .select(PUBLIC_COLUMNS, { count: 'exact' })
+      .is('deleted_at', null)
       .order('created_at', { ascending: false })
       .range(from, to)
 
@@ -48,6 +49,7 @@ export const adminRepository = {
       .from('admins')
       .select(PUBLIC_COLUMNS)
       .eq('id', id)
+      .is('deleted_at', null)
       .maybeSingle()
 
     if (error) throw error
@@ -66,6 +68,7 @@ export const adminRepository = {
       .from('admins')
       .select('id, email, name, created_at, password_hash')
       .eq('id', id)
+      .is('deleted_at', null)
       .maybeSingle()
 
     if (error) throw error
@@ -78,6 +81,7 @@ export const adminRepository = {
       .from('admins')
       .select(PUBLIC_COLUMNS)
       .eq('email', email)
+      .is('deleted_at', null)
       .maybeSingle()
 
     if (error) throw error
@@ -123,17 +127,22 @@ export const adminRepository = {
     if (error) throw error
   },
 
-  /** 삭제 */
+  /** 소프트 딜리트 */
   async delete(supabase: Db, id: string): Promise<void> {
-    const { error } = await supabase.from('admins').delete().eq('id', id)
+    const { error } = await supabase
+      .from('admins')
+      .update({ deleted_at: new Date().toISOString() })
+      .eq('id', id)
+      .is('deleted_at', null)
     if (error) throw error
   },
 
-  /** 전체 카운트 (대시보드용) */
+  /** 활성 어드민 전체 카운트 (대시보드용) */
   async count(supabase: Db): Promise<number> {
     const { count, error } = await supabase
       .from('admins')
       .select('id', { count: 'exact', head: true })
+      .is('deleted_at', null)
 
     if (error) throw error
     return count ?? 0

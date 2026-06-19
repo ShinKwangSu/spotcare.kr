@@ -9,6 +9,11 @@
 //   - INSERT → tenant_id 값 주입
 // (service_role 키는 RLS 를 우회하므로 이 코드 레벨 필터가 실질 격리선이다.)
 //
+// 소프트 딜리트: .delete() 대신 deleted_at = NOW() 업데이트.
+//   - 모든 SELECT 에 .is('deleted_at', null) 필터 추가.
+//   - deleteWorkspace 는 하위 엔티티(facility_types, facilities, inspectors,
+//     checklists, checklist_items)를 코드 레벨에서 cascade soft delete 처리.
+//
 // 반환 타입 규약:
 //   성공 → { success: true, data?: T }
 //   실패 → { success: false, error: string }
@@ -26,10 +31,6 @@ export type ActionResult<T = undefined> =
 
 const WORKSPACES_PATH = '/dashboard/workspaces'
 
-/**
- * 세션에서 tenantId 를 추출한다. 미인증이면 null.
- * (타입 확장 완료 — session.user.tenantId 는 any 캐스팅 불필요)
- */
 async function getTenantId(): Promise<string | null> {
   const session = await auth()
   return session?.user?.tenantId ?? null
@@ -39,10 +40,6 @@ async function getTenantId(): Promise<string | null> {
 // 조회
 // -----------------------------------------------------------------------------
 
-/**
- * 현재 테넌트의 워크스페이스 목록을 최신순으로 반환한다.
- * 미인증이거나 오류 시 빈 배열을 반환한다(목록 렌더 안전).
- */
 export async function getWorkspaces(): Promise<Workspace[]> {
   const tenantId = await getTenantId()
   if (!tenantId) return []
@@ -52,19 +49,14 @@ export async function getWorkspaces(): Promise<Workspace[]> {
     .from('workspaces')
     .select('*')
     .eq('tenant_id', tenantId)
+    .is('deleted_at', null)
     .order('created_at', { ascending: false })
 
   if (error) return []
   return data ?? []
 }
 
-/**
- * 단일 워크스페이스를 조회한다(상세/수정 폼 프리필용).
- * tenant_id 필터로 타 테넌트 행 접근을 차단한다.
- */
-export async function getWorkspace(
-  id: string
-): Promise<ActionResult<Workspace>> {
+export async function getWorkspace(id: string): Promise<ActionResult<Workspace>> {
   const tenantId = await getTenantId()
   if (!tenantId) return { success: false, error: '로그인이 필요합니다.' }
 
@@ -74,6 +66,7 @@ export async function getWorkspace(
     .select('*')
     .eq('id', id)
     .eq('tenant_id', tenantId)
+    .is('deleted_at', null)
     .maybeSingle()
 
   if (error) return { success: false, error: '워크스페이스 조회 중 오류가 발생했습니다.' }
@@ -85,13 +78,7 @@ export async function getWorkspace(
 // 생성
 // -----------------------------------------------------------------------------
 
-/**
- * 워크스페이스 생성.
- * min_floor 는 UI 에서 지하 깊이를 양수로 받아 음수로 변환 저장한다.
- */
-export async function createWorkspace(
-  formData: FormData
-): Promise<ActionResult<Workspace>> {
+export async function createWorkspace(formData: FormData): Promise<ActionResult<Workspace>> {
   const tenantId = await getTenantId()
   if (!tenantId) return { success: false, error: '로그인이 필요합니다.' }
 
@@ -102,24 +89,16 @@ export async function createWorkspace(
   }
 
   const { workspace_name, max_floor, min_floor } = parsed.data
-  // UI 입력(양수 깊이) → DB 저장(음수). 0 은 그대로(지하 없음).
   const minFloorValue = min_floor > 0 ? -min_floor : min_floor
 
   const supabase = createClient()
   const { data, error } = await supabase
     .from('workspaces')
-    .insert({
-      tenant_id: tenantId,
-      workspace_name,
-      max_floor,
-      min_floor: minFloorValue,
-    })
+    .insert({ tenant_id: tenantId, workspace_name, max_floor, min_floor: minFloorValue })
     .select()
     .single()
 
-  if (error) {
-    return { success: false, error: '워크스페이스 생성 중 오류가 발생했습니다.' }
-  }
+  if (error) return { success: false, error: '워크스페이스 생성 중 오류가 발생했습니다.' }
 
   revalidatePath(WORKSPACES_PATH)
   return { success: true, data }
@@ -129,10 +108,6 @@ export async function createWorkspace(
 // 수정
 // -----------------------------------------------------------------------------
 
-/**
- * 워크스페이스 수정.
- * WHERE 에 tenant_id 를 포함하여 타 테넌트 행 변경을 차단한다.
- */
 export async function updateWorkspace(
   id: string,
   formData: FormData
@@ -155,43 +130,74 @@ export async function updateWorkspace(
     .update({ workspace_name, max_floor, min_floor: minFloorValue })
     .eq('id', id)
     .eq('tenant_id', tenantId)
+    .is('deleted_at', null)
     .select()
     .maybeSingle()
 
-  if (error) {
-    return { success: false, error: '워크스페이스 수정 중 오류가 발생했습니다.' }
-  }
-  if (!data) {
-    return { success: false, error: '워크스페이스를 찾을 수 없습니다.' }
-  }
+  if (error) return { success: false, error: '워크스페이스 수정 중 오류가 발생했습니다.' }
+  if (!data) return { success: false, error: '워크스페이스를 찾을 수 없습니다.' }
 
   revalidatePath(WORKSPACES_PATH)
   return { success: true, data }
 }
 
 // -----------------------------------------------------------------------------
-// 삭제
+// 삭제 (소프트 딜리트)
 // -----------------------------------------------------------------------------
 
 /**
- * 워크스페이스 삭제.
- * 하위 facility_types / facilities 는 DB FK ON DELETE CASCADE 로 함께 삭제된다.
- * WHERE 에 tenant_id 를 포함하여 타 테넌트 행 삭제를 차단한다.
+ * 워크스페이스 소프트 딜리트.
+ * DB CASCADE 대신 코드에서 하위 엔티티를 일괄 soft delete 처리한다.
  */
 export async function deleteWorkspace(id: string): Promise<ActionResult> {
   const tenantId = await getTenantId()
   if (!tenantId) return { success: false, error: '로그인이 필요합니다.' }
 
+  const now = new Date().toISOString()
   const supabase = createClient()
+
+  // 하위 엔티티 cascade soft delete (순서 무관 — 독립적)
+  await Promise.all([
+    supabase
+      .from('checklist_items')
+      .update({ deleted_at: now })
+      .eq('workspace_id', id)
+      .eq('tenant_id', tenantId)
+      .is('deleted_at', null),
+    supabase
+      .from('facilities')
+      .update({ deleted_at: now })
+      .eq('workspace_id', id)
+      .eq('tenant_id', tenantId)
+      .is('deleted_at', null),
+    supabase
+      .from('facility_types')
+      .update({ deleted_at: now })
+      .eq('workspace_id', id)
+      .eq('tenant_id', tenantId)
+      .is('deleted_at', null),
+    supabase
+      .from('inspectors')
+      .update({ deleted_at: now })
+      .eq('workspace_id', id)
+      .eq('tenant_id', tenantId)
+      .is('deleted_at', null),
+    supabase
+      .from('checklists')
+      .update({ deleted_at: now })
+      .eq('workspace_id', id)
+      .eq('tenant_id', tenantId)
+      .is('deleted_at', null),
+  ])
+
   const { error } = await supabase
     .from('workspaces')
-    .delete()
+    .update({ deleted_at: now })
     .eq('id', id)
     .eq('tenant_id', tenantId)
+    .is('deleted_at', null)
 
-  if (error) {
-    return { success: false, error: '워크스페이스 삭제 중 오류가 발생했습니다.' }
-  }
+  if (error) return { success: false, error: '워크스페이스 삭제 중 오류가 발생했습니다.' }
 
   revalidatePath(WORKSPACES_PATH)
   return { success: true }

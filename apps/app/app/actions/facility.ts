@@ -11,6 +11,10 @@
 // floor: UI Select(generateFloorOptions)에서 정수로 전달된다. 역변환 불필요.
 //   지상=양수, 지하=음수, 층 없음=0. 표시 변환은 floorToDisplay(앱 레이어).
 //
+// 소프트 딜리트: .delete() 대신 deleted_at = NOW() 업데이트.
+//   - 모든 SELECT 에 .is('deleted_at', null) 필터 추가.
+//   - facility_checklists 는 조인 테이블이므로 hard delete 유지.
+//
 // 반환 타입 규약: { success: true, data? } | { success: false, error }
 // =============================================================================
 
@@ -46,6 +50,7 @@ async function assertFloorInRange(
     .select('min_floor, max_floor')
     .eq('id', workspaceId)
     .eq('tenant_id', tenantId)
+    .is('deleted_at', null)
     .maybeSingle()
 
   if (!ws) return false
@@ -65,6 +70,7 @@ async function assertFacilityTypeOwned(
     .eq('id', facilityTypeId)
     .eq('workspace_id', workspaceId)
     .eq('tenant_id', tenantId)
+    .is('deleted_at', null)
     .maybeSingle()
   return !!data
 }
@@ -90,6 +96,7 @@ export async function getFacilities(
     .select('*, facility_checklists(checklist_id)')
     .eq('workspace_id', workspaceId)
     .eq('tenant_id', tenantId)
+    .is('deleted_at', null)
     .order('floor', { ascending: false })
     .order('created_at', { ascending: true })
 
@@ -112,6 +119,7 @@ export async function getFacility(
     .select('*')
     .eq('id', id)
     .eq('tenant_id', tenantId)
+    .is('deleted_at', null)
     .maybeSingle()
 
   if (error) return { success: false, error: '시설 조회 중 오류가 발생했습니다.' }
@@ -249,6 +257,7 @@ export async function updateFacility(
     .eq('id', id)
     .eq('workspace_id', workspaceId)
     .eq('tenant_id', tenantId)
+    .is('deleted_at', null)
     .select()
     .maybeSingle()
 
@@ -280,13 +289,9 @@ export async function updateFacility(
 }
 
 // -----------------------------------------------------------------------------
-// 삭제
+// 삭제 (소프트 딜리트)
 // -----------------------------------------------------------------------------
 
-/**
- * 시설 삭제. 하위 참조 없음(말단 엔티티).
- * tenant_id + workspace_id 를 WHERE 에 포함하여 격리한다.
- */
 export async function deleteFacility(
   id: string,
   workspaceId: string
@@ -297,10 +302,11 @@ export async function deleteFacility(
   const supabase = createClient()
   const { error } = await supabase
     .from('facilities')
-    .delete()
+    .update({ deleted_at: new Date().toISOString() })
     .eq('id', id)
     .eq('workspace_id', workspaceId)
     .eq('tenant_id', tenantId)
+    .is('deleted_at', null)
 
   if (error) {
     return { success: false, error: '시설 삭제 중 오류가 발생했습니다.' }

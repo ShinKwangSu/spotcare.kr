@@ -35,6 +35,7 @@ export const tenantRepository = {
     let query = supabase
       .from('tenants')
       .select(PUBLIC_COLUMNS, { count: 'exact' })
+      .is('deleted_at', null)
 
     const search = params.search ? sanitizeSearch(params.search) : ''
     if (search) {
@@ -60,6 +61,7 @@ export const tenantRepository = {
         `${PUBLIC_COLUMNS}, workspaces(id, tenant_id, workspace_name, max_floor, min_floor, created_at)`
       )
       .eq('id', tenantId)
+      .is('deleted_at', null)
       .maybeSingle()
 
     if (error) throw error
@@ -83,17 +85,22 @@ export const tenantRepository = {
     return data as Tenant
   },
 
-  /** 삭제 (연관 데이터는 DB FK CASCADE 로 정리) */
+  /** 소프트 딜리트 */
   async delete(supabase: Db, tenantId: string): Promise<void> {
-    const { error } = await supabase.from('tenants').delete().eq('id', tenantId)
+    const { error } = await supabase
+      .from('tenants')
+      .update({ deleted_at: new Date().toISOString() })
+      .eq('id', tenantId)
+      .is('deleted_at', null)
     if (error) throw error
   },
 
-  /** 전체 카운트 (대시보드용) */
+  /** 활성 테넌트 전체 카운트 (대시보드용) */
   async count(supabase: Db): Promise<number> {
     const { count, error } = await supabase
       .from('tenants')
       .select('id', { count: 'exact', head: true })
+      .is('deleted_at', null)
 
     if (error) throw error
     return count ?? 0

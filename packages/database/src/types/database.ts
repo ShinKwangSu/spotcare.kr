@@ -21,6 +21,7 @@ export type Tenant = {
   phone: string
   email: string
   created_at: string
+  deleted_at?: string | null
 }
 
 /**
@@ -43,6 +44,7 @@ export type Workspace = {
   max_floor: number
   min_floor: number
   created_at: string
+  deleted_at?: string | null
 }
 
 /**
@@ -54,6 +56,7 @@ export type FacilityType = {
   tenant_id: string
   type_name: string
   created_at: string
+  deleted_at?: string | null
 }
 
 /**
@@ -70,6 +73,7 @@ export type Facility = {
   location_description: string | null
   notes: string | null
   created_at: string
+  deleted_at?: string | null
 }
 
 /**
@@ -83,6 +87,7 @@ export type Inspector = {
   phone: string | null
   email: string | null
   created_at: string
+  deleted_at?: string | null
 }
 
 /**
@@ -99,6 +104,7 @@ export type Checklist = {
   count: number
   days: number[] | null
   created_at: string
+  deleted_at?: string | null
 }
 
 /**
@@ -115,6 +121,7 @@ export type ChecklistItem = {
   is_required: boolean
   sort_order: number
   created_at: string
+  deleted_at?: string | null
 }
 
 /** 항목이 함께 로드된 점검표 (getChecklists 반환 타입) */
@@ -149,6 +156,7 @@ export type Admin = {
   email: string
   name: string
   created_at: string
+  deleted_at?: string | null
 }
 
 /**
@@ -171,6 +179,7 @@ export type TenantInsert = {
   email: string
   password_hash: string
   created_at?: string
+  deleted_at?: string | null
 }
 
 export type WorkspaceInsert = {
@@ -180,6 +189,7 @@ export type WorkspaceInsert = {
   max_floor?: number
   min_floor?: number
   created_at?: string
+  deleted_at?: string | null
 }
 
 export type FacilityTypeInsert = {
@@ -188,6 +198,7 @@ export type FacilityTypeInsert = {
   tenant_id: string
   type_name: string
   created_at?: string
+  deleted_at?: string | null
 }
 
 export type FacilityInsert = {
@@ -200,6 +211,7 @@ export type FacilityInsert = {
   location_description?: string | null
   notes?: string | null
   created_at?: string
+  deleted_at?: string | null
 }
 
 // -----------------------------------------------------------------------------
@@ -227,6 +239,7 @@ export type InspectorInsert = {
   phone?: string | null
   email?: string | null
   created_at?: string
+  deleted_at?: string | null
 }
 
 export type ChecklistItemInsert = {
@@ -239,6 +252,7 @@ export type ChecklistItemInsert = {
   is_required?: boolean
   sort_order?: number
   created_at?: string
+  deleted_at?: string | null
 }
 
 export type ChecklistInsert = {
@@ -251,6 +265,7 @@ export type ChecklistInsert = {
   count: number
   days?: number[] | null
   created_at?: string
+  deleted_at?: string | null
 }
 
 export type FacilityChecklistInsert = {
@@ -268,6 +283,7 @@ export type AdminInsert = {
   password_hash: string
   name: string
   created_at?: string
+  deleted_at?: string | null
 }
 
 /** admins Update — id/created_at 은 갱신 대상에서 제외한다. */

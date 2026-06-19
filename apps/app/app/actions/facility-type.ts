@@ -6,10 +6,13 @@
 //
 // 격리 패턴: 모든 쿼리에 tenant_id 와 workspace_id 를 함께 필터한다(이중 격리).
 //
+// 소프트 딜리트: .delete() 대신 deleted_at = NOW() 업데이트.
+//   - 모든 SELECT 에 .is('deleted_at', null) 필터 추가.
+//   - 사용 중 여부 확인 시 삭제된 시설은 카운트에서 제외.
+//
 // 제약:
 //   - DB UNIQUE(workspace_id, type_name) → 중복 시 23505 처리.
-//   - facilities.facility_type_id 는 ON DELETE RESTRICT → 사용 중인 타입은
-//     DB 가 삭제를 차단(23503). 사전에 사용 여부를 확인해 친화적 메시지 반환.
+//   - 삭제된 시설(.is('deleted_at', null))이 없어야 삭제 가능.
 //
 // 반환 타입 규약: { success: true, data? } | { success: false, error }
 // =============================================================================
@@ -27,14 +30,9 @@ async function getTenantId(): Promise<string | null> {
 }
 
 function facilityTypesPath(workspaceId: string): string {
-  // UI 라우트 구조와 일치: /dashboard/[workspaceId]/facility-types
   return `/dashboard/${workspaceId}/facility-types`
 }
 
-/**
- * workspaceId 가 현재 테넌트 소유인지 확인한다.
- * 타 테넌트의 workspaceId 로 자식 행을 끼워 넣는 것을 차단한다(권한 상승 방지).
- */
 async function assertWorkspaceOwned(
   supabase: ReturnType<typeof createClient>,
   workspaceId: string,
@@ -45,6 +43,7 @@ async function assertWorkspaceOwned(
     .select('id')
     .eq('id', workspaceId)
     .eq('tenant_id', tenantId)
+    .is('deleted_at', null)
     .maybeSingle()
   return !!data
 }
@@ -53,13 +52,7 @@ async function assertWorkspaceOwned(
 // 조회
 // -----------------------------------------------------------------------------
 
-/**
- * 지정 워크스페이스의 시설 타입 목록을 반환한다(생성순).
- * tenant_id + workspace_id 이중 필터로 격리를 보장한다.
- */
-export async function getFacilityTypes(
-  workspaceId: string
-): Promise<FacilityType[]> {
+export async function getFacilityTypes(workspaceId: string): Promise<FacilityType[]> {
   const tenantId = await getTenantId()
   if (!tenantId) return []
 
@@ -69,6 +62,7 @@ export async function getFacilityTypes(
     .select('*')
     .eq('workspace_id', workspaceId)
     .eq('tenant_id', tenantId)
+    .is('deleted_at', null)
     .order('created_at', { ascending: true })
 
   if (error) return []
@@ -79,9 +73,6 @@ export async function getFacilityTypes(
 // 생성
 // -----------------------------------------------------------------------------
 
-/**
- * 시설 타입 생성. workspaceId 는 액션 인자로 전달된다.
- */
 export async function createFacilityType(
   workspaceId: string,
   formData: FormData
@@ -97,23 +88,17 @@ export async function createFacilityType(
 
   const supabase = createClient()
 
-  // 워크스페이스 소유권 확인(타 테넌트 workspace_id 주입 차단).
   if (!(await assertWorkspaceOwned(supabase, workspaceId, tenantId))) {
     return { success: false, error: '워크스페이스를 찾을 수 없습니다.' }
   }
 
   const { data, error } = await supabase
     .from('facility_types')
-    .insert({
-      tenant_id: tenantId,
-      workspace_id: workspaceId,
-      type_name: parsed.data.type_name,
-    })
+    .insert({ tenant_id: tenantId, workspace_id: workspaceId, type_name: parsed.data.type_name })
     .select()
     .single()
 
   if (error) {
-    // 23505 = unique_violation → 워크스페이스 내 타입명 중복
     if (error.code === '23505') {
       return { success: false, error: '이미 존재하는 타입 이름입니다.' }
     }
@@ -128,10 +113,6 @@ export async function createFacilityType(
 // 수정
 // -----------------------------------------------------------------------------
 
-/**
- * 시설 타입 이름 수정.
- * tenant_id + workspace_id 를 WHERE 에 포함해 타 테넌트/타 워크스페이스 행을 차단한다.
- */
 export async function updateFacilityType(
   id: string,
   workspaceId: string,
@@ -153,6 +134,7 @@ export async function updateFacilityType(
     .eq('id', id)
     .eq('workspace_id', workspaceId)
     .eq('tenant_id', tenantId)
+    .is('deleted_at', null)
     .select()
     .maybeSingle()
 
@@ -162,23 +144,16 @@ export async function updateFacilityType(
     }
     return { success: false, error: '시설 타입 수정 중 오류가 발생했습니다.' }
   }
-  if (!data) {
-    return { success: false, error: '시설 타입을 찾을 수 없습니다.' }
-  }
+  if (!data) return { success: false, error: '시설 타입을 찾을 수 없습니다.' }
 
   revalidatePath(facilityTypesPath(workspaceId))
   return { success: true, data }
 }
 
 // -----------------------------------------------------------------------------
-// 삭제
+// 삭제 (소프트 딜리트)
 // -----------------------------------------------------------------------------
 
-/**
- * 시설 타입 삭제.
- * 이 타입을 사용하는 facilities 가 있으면 DB FK(RESTRICT)가 삭제를 차단한다.
- * 사전에 사용 건수를 확인하여 친화적 메시지를 반환한다(이중 안전: DB 23503 도 처리).
- */
 export async function deleteFacilityType(
   id: string,
   workspaceId: string
@@ -188,16 +163,15 @@ export async function deleteFacilityType(
 
   const supabase = createClient()
 
-  // 사용 중 여부 사전 확인(친화적 메시지용).
+  // 활성 시설에서 사용 중인지 확인 (삭제된 시설은 제외)
   const { count, error: countError } = await supabase
     .from('facilities')
     .select('id', { count: 'exact', head: true })
     .eq('facility_type_id', id)
     .eq('tenant_id', tenantId)
+    .is('deleted_at', null)
 
-  if (countError) {
-    return { success: false, error: '시설 타입 삭제 중 오류가 발생했습니다.' }
-  }
+  if (countError) return { success: false, error: '시설 타입 삭제 중 오류가 발생했습니다.' }
   if ((count ?? 0) > 0) {
     return {
       success: false,
@@ -207,21 +181,13 @@ export async function deleteFacilityType(
 
   const { error } = await supabase
     .from('facility_types')
-    .delete()
+    .update({ deleted_at: new Date().toISOString() })
     .eq('id', id)
     .eq('workspace_id', workspaceId)
     .eq('tenant_id', tenantId)
+    .is('deleted_at', null)
 
-  if (error) {
-    // 23503 = foreign_key_violation (RESTRICT) — 사전 확인과 동시성 차이 대비
-    if (error.code === '23503') {
-      return {
-        success: false,
-        error: '이 타입을 사용하는 시설이 있어 삭제할 수 없습니다.',
-      }
-    }
-    return { success: false, error: '시설 타입 삭제 중 오류가 발생했습니다.' }
-  }
+  if (error) return { success: false, error: '시설 타입 삭제 중 오류가 발생했습니다.' }
 
   revalidatePath(facilityTypesPath(workspaceId))
   return { success: true }

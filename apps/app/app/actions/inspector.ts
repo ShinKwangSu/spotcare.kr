@@ -26,6 +26,7 @@ export async function getInspectors(workspaceId: string): Promise<Inspector[]> {
     .select('*')
     .eq('workspace_id', workspaceId)
     .eq('tenant_id', tenantId)
+    .is('deleted_at', null)
     .order('created_at', { ascending: true })
 
   if (error) return []
@@ -85,6 +86,7 @@ export async function updateInspector(
     .eq('id', id)
     .eq('workspace_id', workspaceId)
     .eq('tenant_id', tenantId)
+    .is('deleted_at', null)
     .select()
     .maybeSingle()
 
@@ -105,10 +107,11 @@ export async function deleteInspector(
   const supabase = createClient()
   const { error } = await supabase
     .from('inspectors')
-    .delete()
+    .update({ deleted_at: new Date().toISOString() })
     .eq('id', id)
     .eq('workspace_id', workspaceId)
     .eq('tenant_id', tenantId)
+    .is('deleted_at', null)
 
   if (error) return { success: false, error: '점검자 삭제 중 오류가 발생했습니다.' }
 

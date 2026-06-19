@@ -23,20 +23,21 @@ export async function getChecklists(workspaceId: string): Promise<ChecklistWithI
   const supabase = createClient()
   const { data, error } = await supabase
     .from('checklists')
-    .select('*, checklist_items(id, item_name, response_type, is_required, sort_order)')
+    .select('*, checklist_items(id, item_name, response_type, is_required, sort_order, deleted_at)')
     .eq('workspace_id', workspaceId)
     .eq('tenant_id', tenantId)
+    .is('deleted_at', null)
     .order('created_at', { ascending: true })
 
   if (error) return []
 
-  // 항목을 sort_order 기준 정렬
+  // 삭제된 항목 제외 후 sort_order 기준 정렬
   const rows = (data ?? []) as unknown as ChecklistWithItems[]
   return rows.map((c) => ({
     ...c,
-    checklist_items: [...(c.checklist_items ?? [])].sort(
-      (a, b) => a.sort_order - b.sort_order
-    ),
+    checklist_items: [...(c.checklist_items ?? [])]
+      .filter((item) => item.deleted_at === null || item.deleted_at === undefined)
+      .sort((a, b) => a.sort_order - b.sort_order),
   }))
 }
 
@@ -127,11 +128,17 @@ export async function updateChecklist(
     .eq('id', id)
     .eq('workspace_id', workspaceId)
     .eq('tenant_id', tenantId)
+    .is('deleted_at', null)
 
   if (error) return { success: false, error: '점검표 수정 중 오류가 발생했습니다.' }
 
-  // 항목 전체 교체 (삭제 후 재삽입)
-  await supabase.from('checklist_items').delete().eq('checklist_id', id).eq('tenant_id', tenantId)
+  // 기존 활성 항목 소프트 딜리트 후 새 항목 삽입
+  await supabase
+    .from('checklist_items')
+    .update({ deleted_at: new Date().toISOString() })
+    .eq('checklist_id', id)
+    .eq('tenant_id', tenantId)
+    .is('deleted_at', null)
 
   const { error: itemsError } = await supabase.from('checklist_items').insert(
     items.map((item, idx) => ({
@@ -158,13 +165,24 @@ export async function deleteChecklist(
   const tenantId = await getTenantId()
   if (!tenantId) return { success: false, error: '로그인이 필요합니다.' }
 
+  const now = new Date().toISOString()
   const supabase = createClient()
+
+  // 하위 항목 먼저 소프트 딜리트
+  await supabase
+    .from('checklist_items')
+    .update({ deleted_at: now })
+    .eq('checklist_id', id)
+    .eq('tenant_id', tenantId)
+    .is('deleted_at', null)
+
   const { error } = await supabase
     .from('checklists')
-    .delete()
+    .update({ deleted_at: now })
     .eq('id', id)
     .eq('workspace_id', workspaceId)
     .eq('tenant_id', tenantId)
+    .is('deleted_at', null)
 
   if (error) return { success: false, error: '점검표 삭제 중 오류가 발생했습니다.' }
 
