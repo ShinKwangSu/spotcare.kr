@@ -1,127 +1,226 @@
 # [MVP 핵심 개발 기획안] 민원 관리 (Phase 3)
 
-> 참고: [하다(HADA) 민원 관리 기능](https://www.hadaworks.com/features/complaint-management) 페이지 분석 기반으로 작성된 기획안.
-
 ## 1. 프로젝트 개요
 
-- **목적:** 시설 방문자가 QR 코드를 통해 로그인 없이 불편 사항·의견·후기를 간편하게 제출하고, 워크스페이스 담당자가 접수된 민원을 실시간으로 확인·분류·소통하며 처리할 수 있는 민원 관리 기능 구축.
-- **핵심 흐름:** `민원 접수(방문자, 비로그인)` → `실시간 알림(담당자)` → `현황 확인 및 유형/시설별 분류` → `댓글 소통` → `처리 완료`
-- **기존 기능과의 연계:** Phase 1의 워크스페이스(건물) · 시설 정보(facilities) 구조를 그대로 활용하여 "어떤 시설에 대한 민원인지"를 매핑함. 데이터 격리 원칙(워크스페이스 단위)을 동일하게 적용.
+- **목적:** 시설 방문자가 QR 코드로 진입한 `/inspect/[facilityId]` 페이지에서 로그인 없이 불편 사항·의견을 간편하게 제출하고, 테넌트 어드민(`apps/app`)이 접수된 민원을 시설별로 확인할 수 있는 민원 관리 기능 구축.
+- **핵심 흐름:** `민원 접수(방문자, 비로그인)` → `시설별 민원 내역 확인(테넌트 어드민)` → `처리 완료 표시`
+- **기존 기능과의 연계:** Phase 1·2의 `workspaces`, `facilities` 구조를 그대로 활용. 점검이력(`FacilityInspectionHistory`) 패턴과 동일하게 시설별로 민원 이력을 Sheet 사이드바로 표시.
 
 ## 2. 기술 스택 (Tech Stack)
 
-- **Framework:** Next.js (App Router 기반 풀스택)
+- **Framework:** Next.js App Router (`apps/app`)
 - **Database:** Supabase (PostgreSQL)
-- **Authentication:** Auth.js — 단, 민원 접수 페이지는 **비로그인(Public) 접근** 허용
+- **Authentication:** Auth.js — 민원 접수 페이지(`/inspect/[facilityId]`)는 기존과 동일하게 **비로그인(Public) 접근** 허용
 - **Styling:** Tailwind CSS
-- **UI Components:** shadcn/ui (`Card`, `Form`, `Badge`, `Table`, `Dialog`, `Tabs`)
-- **파일 저장:** Supabase Storage (민원 첨부 사진)
-- **알림:** 담당자 실시간 알림 — 1차 MVP는 인앱 알림(뱃지/토스트) + 이메일 발송, 추후 카카오 알림톡/푸시 확장 고려
+- **UI Components:** shadcn/ui (`Sheet`, `Dialog`, `Badge`, `Button`, `Textarea`, `Select`)
+- **파일 저장:** Supabase Storage (민원 첨부 사진, 기존 점검 사진과 동일한 버킷 정책 활용)
+- **공유 패키지:** `@spotcare/database` (타입/클라이언트), `@spotcare/ui` (shadcn 컴포넌트)
 
 ---
 
-## 3. 민원 접수 (방문자용, 비로그인)
+## 3. 민원 접수 UX (방문자용, 비로그인)
 
-하다 분석 결과, 방문자는 로그인 없이 **시설별 QR 코드**를 스캔해 전용 제출 페이지(`/c/[facilityQrToken]`)로 진입하여 민원을 남긴다.
+방문자는 기존 QR 코드를 스캔해 `/inspect/[facilityId]` 페이지로 진입한다. **별도 민원 전용 URL 없이**, 기존 점검 상태 페이지 하단에 민원 접수 진입점을 추가한다.
 
-- **접근 방식:** 시설(facility)마다 고유 QR 토큰을 발급하여 `facility_id`와 매핑. QR 스캔 시 별도 회원가입/로그인 절차 없이 즉시 제출 폼 노출.
-- **입력 항목:**
-    - **민원 유형:** 워크스페이스에서 사전 등록한 유형 중 선택 (예: 시설 고장, 청소 요청, 안전 문제, 기타)
-    - **내용:** 프리 텍스트(Free Text), 불편 사항/의견/후기 자유 작성
-    - **사진:** 선택 사항(옵션) — 최대 N장 첨부하여 정확한 상황 전달
-    - **연락처:** 선택 사항 — 회신이 필요한 경우에만 입력 (이름/전화번호, 비로그인이므로 필수 아님)
-- **UI 구현:** shadcn/ui `Form`, `Input`, `Textarea`, 이미지 업로드 컴포넌트로 모바일 친화적인 단일 페이지 폼 구성.
-- **제출 완료:** 제출 즉시 "접수 완료" 안내 화면 노출. 별도 처리 현황 조회 기능은 MVP 범위 제외(추후 확장).
+### 접수 흐름
 
----
+```
+/inspect/[facilityId] 페이지 하단
+  └─ "민원 접수" 버튼 클릭
+       └─ 민원 접수 모달(Dialog) 열림
+            ├─ ① 민원 유형 선택 (Select, 필수)
+            ├─ ② 내용 입력 (Textarea, 필수)
+            ├─ ③ 사진 첨부 (선택, 최대 3장)
+            └─ ④ 접수 버튼 → 완료 안내 후 모달 닫힘
+```
 
-## 4. 백엔드 데이터 구조 및 매핑 규칙 (Database Schema Logic)
+### 입력 항목
 
-모든 테이블의 PK는 UUID 사용. Phase 1의 `workspaces`, `facilities` 테이블과 FK로 연결되어 데이터 격리 원칙을 동일하게 따름.
+| 항목 | 필수 여부 | 비고 |
+|------|----------|------|
+| 민원 유형 | 필수 | 고정 4종 Select, 미선택 시 접수 불가 |
+| 내용 | 필수 | Textarea, 빈 값 접수 불가 |
+| 사진 | 선택 | 최대 3장, Supabase Storage 업로드 |
 
-### ① 민원 유형 (Complaint Type)
+### 민원 유형 고정값
 
-- **개념:** 워크스페이스별로 관리자가 사전 등록하는 민원 분류 카테고리 (예: 시설 고장, 청소 요청, 안전 문제, 기타).
-- **필수 매핑:** `워크스페이스 ID` + `테넌트 ID` 이중 FK.
-- **보유 필드:**
-    - `type_name` (VARCHAR 100): 유형명 (필수)
-    - `sort_order` (INT): 표시 순서
-- **데이터 격리:** Phase 1의 시설 타입(Facility Type)과 동일한 워크스페이스 단위 격리 원칙 적용.
+민원 유형은 관리자가 설정하는 것이 아닌 서비스 전체 고정값이다. 별도 DB 테이블 없이 앱 레이어에서 상수로 관리한다.
 
-### ② 민원 (Complaint)
+| 값 | 표시 라벨 |
+|----|----------|
+| `시설_고장` | 시설 고장 |
+| `청소_요청` | 청소 요청 |
+| `안전_문제` | 안전 문제 |
+| `직접입력` | 직접 입력 |
 
-- **개념:** 방문자가 QR을 통해 제출한 개별 민원 건.
-- **필수 매핑:** `워크스페이스 ID` + `테넌트 ID` + `시설 ID`(FK, 어떤 시설에 대한 민원인지) + `민원 유형 ID` FK.
-- **보유 필드:**
-    - `content` (TEXT): 민원 내용 (필수)
-    - `photo_urls` (TEXT[] / JSONB): 첨부 사진 URL 배열 (선택, Supabase Storage 경로)
-    - `reporter_name` (VARCHAR 100): 제보자 이름 (선택)
-    - `reporter_phone` (VARCHAR 11): 제보자 연락처, 숫자만 저장 (선택)
-    - `status` (ENUM): 처리 상태 — `received`(접수) / `in_progress`(처리중) / `resolved`(완료)
-    - `created_at` (TIMESTAMPTZ): 접수 시각
-    - `resolved_at` (TIMESTAMPTZ): 처리 완료 시각 (NULL 허용)
-- **데이터 격리:** 워크스페이스 레벨 RLS 정책 적용 (tenant_id + workspace_id 이중 필터). 비로그인 제출(INSERT)만 예외적으로 공개 정책(anon) 허용, 조회/수정은 인증된 담당자만 가능.
+**"직접 입력" 선택 시 UX:** Select에서 "직접 입력"을 선택하면 유형명을 직접 작성하는 텍스트 필드가 노출된다. 이 필드도 빈 값이면 접수 불가.
 
-### ③ 민원 댓글 (Complaint Comment)
+### UI 배치 — `/inspect/[facilityId]` 페이지 변경
 
-- **개념:** 민원 처리 과정에서 담당자(또는 점검자)가 남기는 소통 기록. 민원에 종속(CASCADE 삭제).
-- **필수 매핑:** `complaint_id` FK.
-- **보유 필드:**
-    - `author_id` (UUID): 작성자(담당자/점검자) ID
-    - `content` (TEXT): 댓글 내용 (필수)
-    - `created_at` (TIMESTAMPTZ): 작성 시각
-- **UI 정책:** 민원 상세 화면 내 타임라인 형태로 노출. 별도 페이지 이동 없이 인라인 작성.
+현재 페이지 구조에서 점검 항목 섹션 아래에 구분선과 민원 접수 버튼을 추가한다.
 
-### ④ 민원 알림 (Complaint Notification) — 선택적 보조 테이블
-
-- **개념:** 민원 등록 시 담당자에게 발송된 알림 이력. 추후 알림 채널 확장 및 읽음 처리 추적용.
-- **필수 매핑:** `complaint_id` FK + `recipient_id`(담당자) FK.
-- **보유 필드:**
-    - `channel` (ENUM): `in_app` / `email` (MVP 범위)
-    - `is_read` (BOOLEAN): 읽음 여부, 기본값 `FALSE`
-    - `sent_at` (TIMESTAMPTZ): 발송 시각
+```
+[시설명 + 점검하기 버튼]
+[점검 통계 (오늘/이번주/이번달)]
+[마지막 점검]
+[점검 항목 목록]
+─────────────────────────  ← 구분선 추가
+[민원 접수 버튼]            ← 신규 추가
+```
 
 ---
 
-## 5. 어드민(Admin) 주요 기능 및 UI 동선
+## 4. 백엔드 데이터 구조 (Database Schema)
 
-### ① 민원 유형 관리 메뉴 (독립 메뉴)
+민원 유형은 고정값이므로 별도 테이블 없음. `complaints` 테이블 하나만 추가한다. PK는 UUID, 기존 `facilities` 테이블과 FK 연결. CLAUDE.md 소프트 딜리트 컨벤션 적용.
 
-- 워크스페이스 대시보드 내 별도 메뉴로 분리 (Phase 1의 시설 타입 관리와 동일한 UI 패턴).
-- 해당 워크스페이스에서 사용할 민원 유형을 자유롭게 추가, 수정, 삭제(CRUD) 가능.
+### complaints — 민원
 
-### ② 민원 알림 및 실시간 확인
+| 컬럼 | 타입 | 설명 |
+|------|------|------|
+| `id` | UUID PK | |
+| `facility_id` | UUID FK | facilities.id |
+| `workspace_id` | UUID FK | workspaces.id (격리 키 이중화) |
+| `tenant_id` | UUID FK | tenants.id (격리 키) |
+| `complaint_type` | VARCHAR(100) | 민원 유형 문자열 (고정값 또는 직접입력 텍스트) |
+| `content` | TEXT | 민원 내용 (필수, NOT NULL) |
+| `photo_urls` | TEXT[] | 첨부 사진 URL 배열 (기본값 `{}`) |
+| `status` | ENUM | `received`(접수) / `in_progress`(처리중) / `resolved`(완료) |
+| `created_at` | TIMESTAMPTZ | 접수 시각 |
+| `resolved_at` | TIMESTAMPTZ NULL | 처리 완료 시각 |
+| `deleted_at` | TIMESTAMPTZ | 소프트 딜리트, NULL = 활성 |
 
-- 민원이 새로 등록되면 담당자(어드민/점검자)에게 **실시간 알림** 발생 (인앱 뱃지 + 이메일).
-- 현장 방문 없이도 알림을 통해 민원 내용과 첨부 사진을 즉시 확인 가능.
+> `complaint_type`을 ENUM이 아닌 VARCHAR로 저장하는 이유: "직접 입력" 선택 시 사용자가 타이핑한 임의 문자열을 그대로 저장해야 하기 때문. 유형값 유효성 검사는 앱 레이어(Server Action)에서 처리한다.
 
-### ③ 민원 현황 및 관리 메뉴
+**RLS:**
+- `INSERT`: anon 역할 허용 (비로그인 방문자 제출)
+- `SELECT`, `UPDATE`: 인증된 테넌트(`app_current_tenant_id()`)만 허용, `tenant_id` 격리
 
-- **한눈에 보는 현황:** 대시보드 형태로 전체 민원 건수, 상태별(접수/처리중/완료) 카운트 카드 노출. shadcn/ui `Card` 활용.
-- **목록 조회:** shadcn/ui `Table`로 민원 목록 표시.
-    - **컬럼:** 접수일, 시설명, 민원 유형, 내용 미리보기, 상태, 액션(상세보기)
-    - **필터링:** 유형별, 시설별, 상태별 필터 (`Tabs` 또는 `Select`로 구현, URL 파라미터로 상태 관리)
-- **상세/처리:** 민원 클릭 시 상세 다이얼로그 또는 페이지로 이동.
-    - 첨부 사진 확인
-    - 상태 변경 (접수 → 처리중 → 완료)
-    - **댓글로 소통:** 처리 과정 중 필요한 소통을 댓글 형태로 한 곳에서 기록 (타임라인 UI)
-- **사전 조건:** 등록된 민원 유형이 없으면 방문자용 제출 폼에 유형 선택 항목이 비어있을 수 있으므로, 워크스페이스 최초 세팅 시 기본 유형 등록을 안내.
+### 마이그레이션 패턴
+
+```sql
+CREATE TYPE complaint_status AS ENUM ('received', 'in_progress', 'resolved');
+
+CREATE TABLE complaints (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  facility_id UUID NOT NULL REFERENCES facilities(id),
+  workspace_id UUID NOT NULL REFERENCES workspaces(id),
+  tenant_id UUID NOT NULL REFERENCES tenants(id),
+  complaint_type VARCHAR(100) NOT NULL,
+  content TEXT NOT NULL,
+  photo_urls TEXT[] NOT NULL DEFAULT '{}',
+  status complaint_status NOT NULL DEFAULT 'received',
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  resolved_at TIMESTAMPTZ,
+  deleted_at TIMESTAMPTZ
+);
+
+CREATE INDEX idx_complaints_active ON complaints (tenant_id, facility_id) WHERE deleted_at IS NULL;
+```
+
+### TypeScript 타입 추가 (`packages/database/src/types/database.ts`)
+
+```typescript
+/** 앱 레이어 상수 — DB 테이블 없음 */
+export const COMPLAINT_TYPE_OPTIONS = [
+  { value: '시설_고장', label: '시설 고장' },
+  { value: '청소_요청', label: '청소 요청' },
+  { value: '안전_문제', label: '안전 문제' },
+  { value: '직접입력', label: '직접 입력' },
+] as const
+
+export type ComplaintTypeValue = typeof COMPLAINT_TYPE_OPTIONS[number]['value']
+
+export type Complaint = {
+  id: string
+  facility_id: string
+  workspace_id: string
+  tenant_id: string
+  complaint_type: string
+  content: string
+  photo_urls: string[]
+  status: 'received' | 'in_progress' | 'resolved'
+  created_at: string
+  resolved_at: string | null
+  deleted_at?: string | null
+}
+
+export type ComplaintInsert = {
+  id?: string
+  facility_id: string
+  workspace_id: string
+  tenant_id: string
+  complaint_type: string
+  content: string
+  photo_urls?: string[]
+  status?: 'received' | 'in_progress' | 'resolved'
+  created_at?: string
+  resolved_at?: string | null
+  deleted_at?: string | null
+}
+```
 
 ---
 
-## 6. 기존 기능과의 연계 (Phase 1, Phase 2 대비 확장 포인트)
+## 5. 어드민(`apps/app`) 주요 기능 및 UI 동선
 
-- **시설 점검(Facility Inspection)과의 연계:** 민원이 특정 시설의 반복적인 문제로 확인될 경우, 해당 시설의 점검표(Checklist)에 점검 항목을 추가하도록 안내하는 흐름 고려 가능 (MVP 범위 외, 향후 확장).
-- **이슈 및 해결(Issue & Resolve)과의 연계:** 민원 처리 상태(`status`)와 별도의 이슈 관리 기능을 연동하여, 민원이 곧바로 현장 이슈로 전환·추적될 수 있도록 향후 확장 고려.
-- **슈퍼어드민(Phase 2) 대시보드 연계:** 추후 슈퍼어드민 대시보드 통계 카드에 "총 민원 수" 항목 추가 고려.
+민원 유형은 고정값이므로 **별도 유형 관리 메뉴 없음**. 시설별 민원 이력 확인 기능만 추가한다.
+
+### 시설별 민원 이력 확인
+
+- 위치: `/dashboard/[workspaceId]/facilities` (기존 시설 관리 페이지)
+- 기존 `FacilityInspectionHistory` 컴포넌트(점검이력 Sheet)와 동일한 패턴으로 `FacilityComplaintHistory` 컴포넌트를 추가.
+- 시설 목록 각 행 액션 영역에 "민원이력" 버튼 추가 → 클릭 시 Sheet 사이드바 열림.
+- **Sheet 내 목록:** 접수일, 유형, 내용 미리보기, 상태 Badge 표시.
+- **Sheet 내 상세:** 전체 내용, 첨부 사진(라이트박스), 상태 변경(접수 → 처리중 → 완료).
+
+```
+[시설 목록 테이블]
+  └─ 각 행 액션 영역: [점검이력 버튼] [민원이력 버튼] [수정] [삭제]
+                                         ↓
+                              [민원이력 Sheet]
+                                ├─ 민원 목록 (날짜, 유형, 상태 Badge)
+                                └─ 민원 상세
+                                     ├─ 유형 + 내용 + 사진
+                                     └─ 상태 변경 버튼
+```
+
+---
+
+## 6. 기존 기능과의 연계
+
+- **`/inspect/[facilityId]` 페이지:** 비로그인 공개 접근 정책 그대로 유지. 민원 접수는 기존 점검 흐름과 독립적으로 동작.
+- **점검이력 Sheet 패턴:** `FacilityInspectionHistory` → `FacilityComplaintHistory`로 동일한 컴포넌트 구조 재사용.
+- **사진 업로드:** 기존 점검 사진(`inspection` 도메인 actions)과 동일한 Supabase Storage API 호출 방식 사용.
+- **슈퍼어드민(`apps/admin`):** MVP 범위 외. 추후 대시보드 통계 카드에 "총 민원 수" 추가 고려.
 
 ---
 
 ## 7. 구현 파이프라인
 
 ```
-db-architect     → complaint_types, complaints, complaint_comments 테이블 마이그레이션 (RLS 정책 포함)
-backend-engineer → domain/complaint 레이어드 구현 (비로그인 제출 API + 인증 조회/처리 API 분리)
-ui-engineer      → QR 제출 폼(public), 민원 유형 관리, 민원 현황/상세/댓글 화면
-qa-engineer      → 비로그인 제출 보안 검증, 워크스페이스 데이터 격리, 알림 발송, 상태 전이 정합성 검증
+db-architect
+  → complaints 테이블 마이그레이션 (RLS 정책 포함)
+  → packages/database/src/types/database.ts 타입 + COMPLAINT_TYPE_OPTIONS 상수 추가
+
+backend-engineer (apps/app)
+  → app/actions/complaint.ts
+      - submitComplaint(facilityId, data) — anon 허용, complaint_type/content 빈값 차단
+      - getComplaints(facilityId) — 테넌트 인증
+      - updateComplaintStatus(complaintId, status) — 테넌트 인증
+
+ui-engineer (apps/app)
+  → components/complaint-form-dialog.tsx
+      - COMPLAINT_TYPE_OPTIONS Select
+      - "직접 입력" 선택 시 추가 텍스트 필드 노출
+      - 유형·내용 미입력 시 접수 버튼 비활성화
+  → components/facility-complaint-history.tsx (facility-inspection-history 패턴 재사용)
+  → app/inspect/[facilityId]/page.tsx 수정 — 점검 항목 아래 구분선 + 민원 접수 버튼 + 모달 연결
+
+qa-engineer
+  → 비로그인 제출 보안 (anon INSERT만 허용, SELECT/UPDATE 차단)
+  → 유형·내용 빈값 제출 차단 검증 (앱 레이어 + DB NOT NULL)
+  → tenant_id + workspace_id 데이터 격리
+  → 상태 전이 정합성 (received → in_progress → resolved)
+  → 소프트 딜리트 적용 여부 (complaints)
 ```
