@@ -31,10 +31,6 @@ export type ActionResult =
   | { success: true }
   | { success: false; error: string }
 
-export type CreateSessionResult =
-  | { success: true; sessionId: string }
-  | { success: false; reason: 'not_found' | 'no_checklist' | 'session_error' }
-
 export type VerifyResult =
   | { success: true; sessionId: string }
   | { success: false; reason: 'unauthorized' | 'no_checklist' | 'not_found' | 'session_error' }
@@ -49,52 +45,34 @@ export type InspectStatusData = {
   hasChecklist: boolean
 }
 
-// =============================================================================
-// 세션 생성 — /inspect/[facilityId] 서버 컴포넌트에서 호출
-// redirect()는 호출부(Server Component)에서 직접 처리한다.
-// =============================================================================
+export type InspectionHistoryItem = {
+  session_id: string
+  submitted_at: string
+  inspector_name: string | null
+  inspector_phone: string | null
+  pass_count: number
+  fail_count: number
+  total_count: number
+}
 
-export async function createInspectionSession(
-  facilityId: string
-): Promise<CreateSessionResult> {
-  const supabase = createClient()
-
-  const { data: facilityRow } = await supabase
-    .from('facilities')
-    .select('id')
-    .eq('id', facilityId)
-    .is('deleted_at', null)
-    .maybeSingle()
-
-  if (!facilityRow) return { success: false, reason: 'not_found' }
-
-  const { data: fcRow } = await supabase
-    .from('facility_checklists')
-    .select('checklist_id')
-    .eq('facility_id', facilityId)
-    .maybeSingle()
-
-  if (!fcRow?.checklist_id) return { success: false, reason: 'no_checklist' }
-
-  const { data: session, error } = await supabase
-    .from('inspection_sessions')
-    .insert({ facility_id: facilityId })
-    .select()
-    .single()
-
-  if (error || !session) return { success: false, reason: 'session_error' }
-
-  return { success: true, sessionId: session.id }
+export type InspectionHistoryDetail = {
+  session_id: string
+  submitted_at: string
+  inspector_name: string | null
+  inspector_phone: string | null
+  items: {
+    id: string
+    item_name: string
+    is_required: boolean
+    sort_order: number
+    passed: boolean | null
+  }[]
 }
 
 // =============================================================================
 // 세션 + 점검 데이터 조회 — /inspect/[facilityId]/[sessionId] 서버 컴포넌트
 // =============================================================================
 
-/**
- * sessionId 로 세션을 조회하고 유효성을 검증한다.
- * 만료/완료 체크는 DB 단에서 수행(expires_at > NOW()).
- */
 export async function getInspectionSession(
   facilityId: string,
   sessionId: string
@@ -112,7 +90,6 @@ export async function getInspectionSession(
     .maybeSingle()
 
   if (!session) {
-    // 만료 혹은 완료 여부 판별을 위해 상태만 별도 조회
     const { data: raw } = await supabase
       .from('inspection_sessions')
       .select('status')
@@ -165,10 +142,6 @@ export async function getInspectionSession(
 // 점검 제출 — InspectionForm 클라이언트 컴포넌트에서 호출
 // =============================================================================
 
-/**
- * 점검 결과를 저장하고 세션을 완료 처리한다.
- * 제출 시점에 세션 유효성을 재검증(TOCTOU 방지).
- */
 export async function submitInspection(
   sessionId: string,
   facilityId: string,
@@ -240,7 +213,6 @@ export async function verifyAndCreateSession(
 
   if (!fcRow?.checklist_id) return { success: false, reason: 'no_checklist' }
 
-  // 같은 워크스페이스 점검자 중 전화번호 뒤 4자리 일치 여부 확인
   const { data: inspector } = await supabase
     .from('inspectors')
     .select('id')
@@ -254,7 +226,7 @@ export async function verifyAndCreateSession(
 
   const { data: session, error } = await supabase
     .from('inspection_sessions')
-    .insert({ facility_id: facilityId })
+    .insert({ facility_id: facilityId, inspector_id: inspector.id })
     .select()
     .single()
 
@@ -332,5 +304,133 @@ export async function getInspectStatus(
     monthlyCount: monthlyRes.count ?? 0,
     checklistItems,
     hasChecklist: !!fcRes.data?.checklist_id,
+  }
+}
+
+// =============================================================================
+// 점검 이력 목록 — 관리자 시설 관리 화면에서 호출
+// =============================================================================
+
+export async function getInspectionHistory(
+  facilityId: string
+): Promise<InspectionHistoryItem[]> {
+  const supabase = createClient()
+
+  const { data: sessions } = await supabase
+    .from('inspection_sessions')
+    .select('id, completed_at, inspector_id')
+    .eq('facility_id', facilityId)
+    .eq('status', 'completed')
+    .order('completed_at', { ascending: false })
+    .limit(100)
+
+  if (!sessions?.length) return []
+
+  const sessionIds = sessions.map((s) => s.id)
+  const inspectorIds = [...new Set(sessions.map((s) => s.inspector_id).filter(Boolean) as string[])]
+
+  const [resultsRes, inspectorsRes] = await Promise.all([
+    supabase
+      .from('inspection_results')
+      .select('session_id, submitted_at, item_results')
+      .in('session_id', sessionIds),
+    inspectorIds.length
+      ? supabase
+          .from('inspectors')
+          .select('id, name, phone')
+          .in('id', inspectorIds)
+      : Promise.resolve({ data: [] }),
+  ])
+
+  const resultMap = new Map(
+    (resultsRes.data ?? []).map((r) => [r.session_id, r])
+  )
+  const inspectorMap = new Map(
+    (inspectorsRes.data ?? []).map((i) => [i.id, i])
+  )
+
+  return sessions.map((s) => {
+    const result = resultMap.get(s.id)
+    const inspector = s.inspector_id ? inspectorMap.get(s.inspector_id) : null
+    const values = Object.values(result?.item_results ?? {}) as boolean[]
+    const passCount = values.filter(Boolean).length
+
+    return {
+      session_id: s.id,
+      submitted_at: result?.submitted_at ?? s.completed_at ?? '',
+      inspector_name: inspector?.name ?? null,
+      inspector_phone: inspector?.phone ?? null,
+      pass_count: passCount,
+      fail_count: values.length - passCount,
+      total_count: values.length,
+    }
+  })
+}
+
+// =============================================================================
+// 점검 이력 상세 — 이력 목록에서 특정 항목 클릭 시 호출
+// =============================================================================
+
+export async function getInspectionDetail(
+  sessionId: string,
+  facilityId: string
+): Promise<InspectionHistoryDetail | null> {
+  const supabase = createClient()
+
+  const { data: session } = await supabase
+    .from('inspection_sessions')
+    .select('id, completed_at, inspector_id')
+    .eq('id', sessionId)
+    .eq('facility_id', facilityId)
+    .eq('status', 'completed')
+    .maybeSingle()
+
+  if (!session) return null
+
+  const [resultRes, inspectorRes, fcRes] = await Promise.all([
+    supabase
+      .from('inspection_results')
+      .select('submitted_at, item_results')
+      .eq('session_id', sessionId)
+      .maybeSingle(),
+    session.inspector_id
+      ? supabase
+          .from('inspectors')
+          .select('name, phone')
+          .eq('id', session.inspector_id)
+          .maybeSingle()
+      : Promise.resolve({ data: null }),
+    supabase
+      .from('facility_checklists')
+      .select('checklist_id')
+      .eq('facility_id', facilityId)
+      .maybeSingle(),
+  ])
+
+  // 체크리스트 항목은 삭제된 항목도 포함해 이력 표시 (소프트딜리트 필터 제거)
+  let allItems: ChecklistItem[] = []
+  if (fcRes.data?.checklist_id) {
+    const { data: items } = await supabase
+      .from('checklist_items')
+      .select('id, item_name, is_required, sort_order, deleted_at')
+      .eq('checklist_id', fcRes.data.checklist_id)
+      .order('sort_order', { ascending: true })
+    allItems = (items ?? []) as ChecklistItem[]
+  }
+
+  const itemResults = resultRes.data?.item_results ?? {}
+
+  return {
+    session_id: session.id,
+    submitted_at: resultRes.data?.submitted_at ?? session.completed_at ?? '',
+    inspector_name: inspectorRes.data?.name ?? null,
+    inspector_phone: inspectorRes.data?.phone ?? null,
+    items: allItems.map((item) => ({
+      id: item.id,
+      item_name: item.item_name,
+      is_required: item.is_required,
+      sort_order: item.sort_order,
+      passed: item.id in itemResults ? itemResults[item.id] : null,
+    })),
   }
 }

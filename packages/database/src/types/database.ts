@@ -296,6 +296,7 @@ export type AdminUpdate = Partial<Omit<Admin, 'id' | 'created_at'>>
 export type InspectionSession = {
   id: string
   facility_id: string
+  inspector_id: string | null
   status: 'active' | 'completed' | 'expired'
   created_at: string
   expires_at: string
@@ -305,6 +306,7 @@ export type InspectionSession = {
 export type InspectionSessionInsert = {
   id?: string
   facility_id: string
+  inspector_id?: string | null
   status?: 'active' | 'completed' | 'expired'
   expires_at?: string
   completed_at?: string | null
