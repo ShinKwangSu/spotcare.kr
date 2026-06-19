@@ -14,6 +14,7 @@
 
 import { z } from 'zod'
 import { revalidatePath } from 'next/cache'
+import { isRedirectError } from 'next/dist/client/components/redirect'
 import { createClient } from '@/lib/supabase/server'
 import { requireAdmin } from '@/lib/auth'
 import { adminService } from '../service/admin.service'
@@ -91,6 +92,7 @@ export async function createAdminAction(
     revalidatePath('/dashboard/admins')
     return { success: true, data: admin }
   } catch (e) {
+    if (isRedirectError(e)) throw e
     return {
       success: false,
       error: e instanceof Error ? e.message : '어드민 생성 중 오류가 발생했습니다.',
@@ -123,6 +125,7 @@ export async function updateAdminAction(
     revalidatePath(`/dashboard/admins/${adminId}`)
     return { success: true, data: admin }
   } catch (e) {
+    if (isRedirectError(e)) throw e
     return {
       success: false,
       error: e instanceof Error ? e.message : '어드민 수정 중 오류가 발생했습니다.',
@@ -140,6 +143,7 @@ export async function deleteAdminAction(
     revalidatePath('/dashboard/admins')
     return { success: true, data: undefined }
   } catch (e) {
+    if (isRedirectError(e)) throw e
     return {
       success: false,
       error: e instanceof Error ? e.message : '어드민 삭제 중 오류가 발생했습니다.',
@@ -174,6 +178,7 @@ export async function changePasswordAction(
     )
     return { success: true, data: undefined }
   } catch (e) {
+    if (isRedirectError(e)) throw e
     return {
       success: false,
       error: e instanceof Error ? e.message : '비밀번호 변경 중 오류가 발생했습니다.',

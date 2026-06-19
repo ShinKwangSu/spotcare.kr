@@ -9,16 +9,17 @@
 // (전역 데이터 접근이 의도된 설계)
 // =============================================================================
 
+import { redirect } from 'next/navigation'
 import { auth } from '@/auth'
 
 /**
- * 슈퍼어드민 인증 강제. 미인증 시 throw.
+ * 슈퍼어드민 인증 강제. 미인증 시 /login 으로 리다이렉트.
  * 반환된 adminId 는 admins.id(UUID) 이다.
  */
 export async function requireAdmin(): Promise<{ adminId: string }> {
   const session = await auth()
   if (!session?.user?.adminId) {
-    throw new Error('Unauthorized')
+    redirect('/login')
   }
   return { adminId: session.user.adminId }
 }

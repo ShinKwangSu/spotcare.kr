@@ -14,6 +14,7 @@
 
 import { z } from 'zod'
 import { revalidatePath } from 'next/cache'
+import { isRedirectError } from 'next/dist/client/components/redirect'
 import { createClient } from '@/lib/supabase/server'
 import { requireAdmin } from '@/lib/auth'
 import { tenantService } from '../service/tenant.service'
@@ -104,6 +105,7 @@ export async function updateTenantAction(
     revalidatePath(`/dashboard/tenants/${tenantId}`)
     return { success: true, data: tenant }
   } catch (e) {
+    if (isRedirectError(e)) throw e
     return {
       success: false,
       error: e instanceof Error ? e.message : '테넌트 수정 중 오류가 발생했습니다.',
@@ -121,6 +123,7 @@ export async function deleteTenantAction(
     revalidatePath('/dashboard/tenants')
     return { success: true, data: undefined }
   } catch (e) {
+    if (isRedirectError(e)) throw e
     return {
       success: false,
       error: e instanceof Error ? e.message : '테넌트 삭제 중 오류가 발생했습니다.',
