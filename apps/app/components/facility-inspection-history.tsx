@@ -23,6 +23,7 @@ import {
   type InspectionHistoryItem,
   type InspectionHistoryDetail,
 } from '@/app/actions/inspection'
+import { formatPhone, rawPhone } from '@/lib/utils/phone'
 import type { FacilityWithChecklists } from '@/types/database'
 
 // -----------------------------------------------------------------------------
@@ -105,7 +106,13 @@ function HistoryList({
                 <p className="text-xs text-muted-foreground">
                   {item.inspector_name ?? '점검자 미상'}
                   {item.inspector_phone && (
-                    <span className="ml-1 opacity-60">({item.inspector_phone})</span>
+                    <a
+                      href={`tel:${rawPhone(item.inspector_phone)}`}
+                      onClick={(e) => e.stopPropagation()}
+                      className="ml-1 opacity-60 hover:opacity-100 hover:underline"
+                    >
+                      ({formatPhone(item.inspector_phone)})
+                    </a>
                   )}
                 </p>
               </div>
@@ -185,10 +192,13 @@ function HistoryDetail({
                 {detail.inspector_name ?? '점검자 미상'}
               </span>
               {detail.inspector_phone && (
-                <span className="flex items-center gap-1.5">
+                <a
+                  href={`tel:${rawPhone(detail.inspector_phone)}`}
+                  className="flex items-center gap-1.5 hover:underline"
+                >
                   <Phone className="h-3.5 w-3.5" />
-                  {detail.inspector_phone}
-                </span>
+                  {formatPhone(detail.inspector_phone)}
+                </a>
               )}
             </div>
           </div>
