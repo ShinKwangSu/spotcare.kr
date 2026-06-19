@@ -63,11 +63,16 @@ export type InspectionHistoryDetail = {
   items: {
     id: string
     item_name: string
+    response_type: 'checklist' | 'photo'
     is_required: boolean
     sort_order: number
-    passed: boolean | null
+    result: boolean | string | null  // checklist: boolean, photo: URL string, 미응답: null
   }[]
 }
+
+export type PhotoUploadResult =
+  | { success: true; url: string }
+  | { success: false; error: string }
 
 // =============================================================================
 // 세션 + 점검 데이터 조회 — /inspect/[facilityId]/[sessionId] 서버 컴포넌트
@@ -145,7 +150,7 @@ export async function getInspectionSession(
 export async function submitInspection(
   sessionId: string,
   facilityId: string,
-  itemResults: Record<string, boolean>
+  itemResults: Record<string, boolean | string>
 ): Promise<ActionResult> {
   const supabase = createClient()
 
@@ -433,9 +438,62 @@ export async function getInspectionDetail(
     items: allItems.map((item) => ({
       id: item.id,
       item_name: item.item_name,
+      response_type: item.response_type,
       is_required: item.is_required,
       sort_order: item.sort_order,
-      passed: item.id in itemResults ? itemResults[item.id] : null,
+      result: item.id in itemResults ? itemResults[item.id] : null,
     })),
   }
+}
+
+// =============================================================================
+// 사진 업로드 — inspection-form 클라이언트 컴포넌트에서 호출
+// =============================================================================
+
+export async function uploadInspectionPhoto(
+  sessionId: string,
+  facilityId: string,
+  itemId: string,
+  formData: FormData
+): Promise<PhotoUploadResult> {
+  const supabase = createClient()
+
+  // 세션이 아직 유효한지 확인
+  const { data: session } = await supabase
+    .from('inspection_sessions')
+    .select('id')
+    .eq('id', sessionId)
+    .eq('facility_id', facilityId)
+    .eq('status', 'active')
+    .gt('expires_at', new Date().toISOString())
+    .maybeSingle()
+
+  if (!session) {
+    return { success: false, error: '세션이 만료됐습니다. QR을 다시 찍어주세요.' }
+  }
+
+  const file = formData.get('file') as File | null
+  if (!file || file.size === 0) {
+    return { success: false, error: '파일이 없습니다.' }
+  }
+  if (file.size > 10 * 1024 * 1024) {
+    return { success: false, error: '파일 크기는 10MB 이하여야 합니다.' }
+  }
+
+  const ext = file.name.split('.').pop()?.toLowerCase() ?? 'jpg'
+  const path = `${facilityId}/${sessionId}/${itemId}.${ext}`
+
+  const { error } = await supabase.storage
+    .from('inspection-photos')
+    .upload(path, file, { contentType: file.type, upsert: true })
+
+  if (error) {
+    return { success: false, error: '사진 업로드 중 오류가 발생했습니다.' }
+  }
+
+  const { data: { publicUrl } } = supabase.storage
+    .from('inspection-photos')
+    .getPublicUrl(path)
+
+  return { success: true, url: publicUrl }
 }

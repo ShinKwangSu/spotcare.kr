@@ -6,7 +6,7 @@ export const checklistItemInputSchema = z.object({
     .trim()
     .min(1, '항목명을 입력해주세요.')
     .max(255, '항목명은 255자 이내로 입력해주세요.'),
-  response_type: z.enum(['checklist']).default('checklist'),
+  response_type: z.enum(['checklist', 'photo']).default('checklist'),
   is_required: z.boolean().default(false),
 })
 

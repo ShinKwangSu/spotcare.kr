@@ -117,7 +117,7 @@ export type ChecklistItem = {
   workspace_id: string
   tenant_id: string
   item_name: string
-  response_type: 'checklist'
+  response_type: 'checklist' | 'photo'
   is_required: boolean
   sort_order: number
   created_at: string
@@ -248,7 +248,7 @@ export type ChecklistItemInsert = {
   workspace_id: string
   tenant_id: string
   item_name: string
-  response_type?: 'checklist'
+  response_type?: 'checklist' | 'photo'
   is_required?: boolean
   sort_order?: number
   created_at?: string
@@ -321,14 +321,14 @@ export type InspectionResult = {
   session_id: string
   facility_id: string
   submitted_at: string
-  item_results: Record<string, boolean>
+  item_results: Record<string, boolean | string>
 }
 
 export type InspectionResultInsert = {
   id?: string
   session_id: string
   facility_id: string
-  item_results: Record<string, boolean>
+  item_results: Record<string, boolean | string>
 }
 
 // -----------------------------------------------------------------------------

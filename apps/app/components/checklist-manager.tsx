@@ -396,6 +396,7 @@ function ChecklistFormDialog({
                             </FormControl>
                             <SelectContent>
                               <SelectItem value="checklist">체크리스트</SelectItem>
+                              <SelectItem value="photo">사진</SelectItem>
                             </SelectContent>
                           </Select>
                         </FormItem>

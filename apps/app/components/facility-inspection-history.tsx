@@ -215,25 +215,38 @@ function HistoryDetail({
             ) : (
               <ul className="space-y-2">
                 {detail.items.map((item) => (
-                  <li
-                    key={item.id}
-                    className="flex items-center justify-between gap-3 rounded-md border px-4 py-3"
-                  >
-                    <div className="flex items-center gap-2 min-w-0">
-                      <span className="truncate text-sm">{item.item_name}</span>
-                      {item.is_required && (
-                        <span className="shrink-0 text-xs text-muted-foreground">(필수)</span>
-                      )}
+                  <li key={item.id} className="rounded-md border px-4 py-3 space-y-2">
+                    <div className="flex items-center justify-between gap-3">
+                      <div className="flex items-center gap-2 min-w-0">
+                        <span className="truncate text-sm">{item.item_name}</span>
+                        {item.is_required && (
+                          <span className="shrink-0 text-xs text-muted-foreground">(필수)</span>
+                        )}
+                      </div>
+                      <div className="shrink-0">
+                        {item.response_type === 'photo' ? (
+                          typeof item.result === 'string' && item.result ? (
+                            <CheckCircle2 className="h-5 w-5 text-green-600" />
+                          ) : (
+                            <MinusCircle className="h-5 w-5 text-muted-foreground/40" />
+                          )
+                        ) : item.result === true ? (
+                          <CheckCircle2 className="h-5 w-5 text-green-600" />
+                        ) : item.result === false ? (
+                          <XCircle className="h-5 w-5 text-destructive" />
+                        ) : (
+                          <MinusCircle className="h-5 w-5 text-muted-foreground/40" />
+                        )}
+                      </div>
                     </div>
-                    <div className="shrink-0">
-                      {item.passed === true ? (
-                        <CheckCircle2 className="h-5 w-5 text-green-600" />
-                      ) : item.passed === false ? (
-                        <XCircle className="h-5 w-5 text-destructive" />
-                      ) : (
-                        <MinusCircle className="h-5 w-5 text-muted-foreground/40" />
-                      )}
-                    </div>
+                    {item.response_type === 'photo' && typeof item.result === 'string' && item.result && (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img
+                        src={item.result}
+                        alt={item.item_name}
+                        className="w-full max-h-48 rounded-md object-cover"
+                      />
+                    )}
                   </li>
                 ))}
               </ul>
