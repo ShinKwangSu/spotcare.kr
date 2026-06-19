@@ -43,6 +43,7 @@ export default async function InspectStatusPage({
         day: 'numeric',
         hour: '2-digit',
         minute: '2-digit',
+        hour12: false,
       })
     : '아직 점검 이력 없음'
 
