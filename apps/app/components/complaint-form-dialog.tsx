@@ -13,11 +13,11 @@ import { useState, useRef, useTransition } from 'react'
 import { MessageSquarePlus, X, ImagePlus } from 'lucide-react'
 import {
   Dialog,
-  DialogContent,
   DialogHeader,
   DialogTitle,
   DialogTrigger,
-} from '@spotcare/ui/components/dialog'
+  FormDialogContent as DialogContent,
+} from '@/components/form-dialog'
 import { Button } from '@spotcare/ui/components/button'
 import { Textarea } from '@spotcare/ui/components/textarea'
 import {
@@ -127,7 +127,7 @@ export function ComplaintFormDialog({ facilityId }: Props) {
         </Button>
       </DialogTrigger>
 
-      <DialogContent className="max-w-md" onInteractOutside={(e) => e.preventDefault()}>
+      <DialogContent className="max-w-md">
         <DialogHeader>
           <DialogTitle>민원 접수</DialogTitle>
         </DialogHeader>

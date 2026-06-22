@@ -42,9 +42,35 @@ CREATE INDEX idx_new_table_active ON new_table (tenant_id) WHERE deleted_at IS N
 
 ---
 
+### 폼 다이얼로그 (필수)
+
+입력 폼이 포함된 Dialog는 반드시 `FormDialogContent`를 사용한다.
+
+**규칙:**
+- `@spotcare/ui/components/dialog`의 `DialogContent` 직접 사용 금지 (폼 다이얼로그에 한함)
+- 대신 `@/components/form-dialog`에서 `FormDialogContent`를 import해 사용
+- `FormDialogContent`는 바깥 영역 클릭 시 닫힘을 기본 차단한다 (입력 데이터 보호)
+- 조회/확인용 다이얼로그(QR 코드, 삭제 확인 등)는 기존 `DialogContent` 그대로 사용
+
+**패턴:**
+```tsx
+import {
+  Dialog,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+  FormDialogContent as DialogContent,
+} from '@/components/form-dialog'
+
+// 이하 기존 Dialog 패턴과 동일하게 사용
+```
+
+---
+
 ## 변경 이력
 | 날짜 | 변경 내용 | 대상 | 사유 |
 |------|----------|------|------|
 | 2026-06-16 | 초기 구성 | 전체 | STEP_1.md 기반 MVP 구현 하네스 신규 구축 |
 | 2026-06-16 | 모노레포 전환 반영 | 전체 | apps/app + apps/admin 이중 파이프라인, @spotcare/database/@spotcare/ui 공유 패키지 도입 |
 | 2026-06-19 | 소프트 딜리트 컨벤션 추가 | 전체 | 모든 삭제 기능에 deleted_at 방식 의무화 |
+| 2026-06-22 | 폼 다이얼로그 컨벤션 추가 | apps/app | FormDialogContent 래퍼 도입, 바깥 클릭 닫힘 방지 정책 |

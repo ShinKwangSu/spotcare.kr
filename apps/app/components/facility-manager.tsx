@@ -48,13 +48,13 @@ import {
 } from '@spotcare/ui/components/table'
 import {
   Dialog,
-  DialogContent,
   DialogDescription,
   DialogFooter,
   DialogHeader,
   DialogTitle,
   DialogTrigger,
-} from '@spotcare/ui/components/dialog'
+  FormDialogContent as DialogContent,
+} from '@/components/form-dialog'
 import {
   Form,
   FormControl,
@@ -295,7 +295,7 @@ function FacilityFormDialog({
           )}
         </DialogTrigger>
       )}
-      <DialogContent onInteractOutside={(e) => e.preventDefault()}>
+      <DialogContent>
         <DialogHeader>
           <DialogTitle>{isEdit ? '시설 수정' : '시설 등록'}</DialogTitle>
           <DialogDescription>

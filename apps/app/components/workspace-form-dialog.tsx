@@ -20,13 +20,13 @@ import { createWorkspace, updateWorkspace } from '@/app/actions/workspace'
 import type { Workspace } from '@/types/database'
 import {
   Dialog,
-  DialogContent,
   DialogDescription,
   DialogFooter,
   DialogHeader,
   DialogTitle,
   DialogTrigger,
-} from '@spotcare/ui/components/dialog'
+  FormDialogContent as DialogContent,
+} from '@/components/form-dialog'
 import {
   Form,
   FormControl,
@@ -196,7 +196,7 @@ export function WorkspaceFormDialog({ workspace, trigger, open: openProp, onOpen
           )}
         </DialogTrigger>
       )}
-      <DialogContent onInteractOutside={(e) => e.preventDefault()}>
+      <DialogContent>
         <DialogHeader>
           <DialogTitle>
             {isEdit ? '워크스페이스 수정' : '워크스페이스 추가'}
