@@ -93,8 +93,7 @@ const formSchema = z.object({
     .number({ invalid_type_error: '층을 선택해주세요.' })
     .int('층을 선택해주세요.'),
   facility_type_id: z.string().uuid('시설 타입을 선택해주세요.'),
-  location_description: z.string().trim().max(2000).optional(),
-  notes: z.string().trim().max(2000).optional(),
+  memo: z.string().trim().max(2000).optional(),
   checklist_id: z.string().optional(),
 })
 
@@ -164,8 +163,7 @@ export function FacilityManager({
                 <TableHead>층</TableHead>
                 <TableHead>시설 타입</TableHead>
                 <TableHead>점검표</TableHead>
-                <TableHead className="hidden md:table-cell">위치 설명</TableHead>
-                <TableHead className="hidden lg:table-cell">비고</TableHead>
+                <TableHead className="hidden md:table-cell">메모</TableHead>
                 <TableHead className="text-right">액션</TableHead>
               </TableRow>
             </TableHeader>
@@ -184,11 +182,8 @@ export function FacilityManager({
                       ? (checklistNameById.get(f.facility_checklists[0].checklist_id) ?? '-')
                       : '-'}
                   </TableCell>
-                  <TableCell className="hidden md:table-cell text-muted-foreground">
-                    {f.location_description || '-'}
-                  </TableCell>
-                  <TableCell className="hidden lg:table-cell text-muted-foreground">
-                    {f.notes || '-'}
+                  <TableCell className="hidden md:table-cell text-muted-foreground max-w-[200px] truncate">
+                    {f.memo || '-'}
                   </TableCell>
                   <TableCell className="text-right">
                     <FacilityRowActions
@@ -243,8 +238,7 @@ function FacilityFormDialog({
       facility_name: facility?.facility_name ?? '',
       floor: facility?.floor ?? floorOptions[0]?.value,
       facility_type_id: facility?.facility_type_id ?? '',
-      location_description: facility?.location_description ?? '',
-      notes: facility?.notes ?? '',
+      memo: facility?.memo ?? '',
       checklist_id: facility?.facility_checklists?.[0]?.checklist_id ?? undefined,
     },
   })
@@ -254,8 +248,7 @@ function FacilityFormDialog({
       facility_name: facility?.facility_name ?? '',
       floor: facility?.floor ?? floorOptions[0]?.value,
       facility_type_id: facility?.facility_type_id ?? '',
-      location_description: facility?.location_description ?? '',
-      notes: facility?.notes ?? '',
+      memo: facility?.memo ?? '',
       checklist_id: facility?.facility_checklists?.[0]?.checklist_id ?? undefined,
     })
   }
@@ -265,8 +258,7 @@ function FacilityFormDialog({
     formData.set('facility_name', values.facility_name)
     formData.set('floor', String(values.floor))
     formData.set('facility_type_id', values.facility_type_id)
-    formData.set('location_description', values.location_description ?? '')
-    formData.set('notes', values.notes ?? '')
+    formData.set('memo', values.memo ?? '')
     formData.set('checklist_id', values.checklist_id ?? '')
 
     startTransition(async () => {
@@ -392,36 +384,15 @@ function FacilityFormDialog({
 
             <FormField
               control={form.control}
-              name="location_description"
+              name="memo"
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>
-                    위치 설명{' '}
-                    <span className="text-muted-foreground">(선택)</span>
+                    메모 <span className="text-muted-foreground">(선택)</span>
                   </FormLabel>
                   <FormControl>
                     <Textarea
-                      placeholder="엘리베이터 옆"
-                      {...field}
-                      value={field.value ?? ''}
-                    />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-
-            <FormField
-              control={form.control}
-              name="notes"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>
-                    비고 <span className="text-muted-foreground">(선택)</span>
-                  </FormLabel>
-                  <FormControl>
-                    <Textarea
-                      placeholder="추가 메모"
+                      placeholder="위치 설명, 특이사항 등"
                       {...field}
                       value={field.value ?? ''}
                     />

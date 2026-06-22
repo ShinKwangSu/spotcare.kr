@@ -39,8 +39,7 @@ export const facilitySchema = z.object({
   facility_type_id: z
     .string()
     .uuid('올바른 시설 타입을 선택해주세요.'),
-  location_description: optionalText,
-  notes: optionalText,
+  memo: optionalText,
 })
 
 export type FacilityInput = z.infer<typeof facilitySchema>

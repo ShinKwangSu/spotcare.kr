@@ -32,7 +32,7 @@ export default async function InspectStatusPage({
   } = data
 
   const floorLabel = floorToDisplay(facility.floor)
-  const subtitle = [floorLabel, facility.location_description]
+  const subtitle = [floorLabel, facility.memo]
     .filter(Boolean)
     .join(' · ')
 

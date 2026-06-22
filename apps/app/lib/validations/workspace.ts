@@ -37,6 +37,7 @@ export const workspaceSchema = z.object({
     .max(50, '지하 최저 층이 너무 깊습니다.'),
   address: z.string().trim().min(1, '주소를 입력해주세요.').max(255),
   address_detail: z.string().max(255).optional(),
+  memo: z.string().trim().max(2000).optional(),
 })
 
 export type WorkspaceInput = z.infer<typeof workspaceSchema>

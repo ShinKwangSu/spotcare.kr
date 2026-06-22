@@ -29,7 +29,7 @@ export function FacilityQrDialog({ facility }: Props) {
   const inspectUrl = `${appUrl}/inspect/${facility.id}`
 
   const floorLabel = floorToDisplay(facility.floor)
-  const subtitle = [floorLabel, facility.location_description]
+  const subtitle = [floorLabel, facility.memo]
     .filter(Boolean)
     .join(' · ')
 

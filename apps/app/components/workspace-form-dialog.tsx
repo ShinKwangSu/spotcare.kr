@@ -38,6 +38,7 @@ import {
 } from '@spotcare/ui/components/form'
 import { Button } from '@spotcare/ui/components/button'
 import { Input } from '@spotcare/ui/components/input'
+import { Textarea } from '@spotcare/ui/components/textarea'
 
 // -----------------------------------------------------------------------------
 // Daum 주소 검색 타입
@@ -100,6 +101,7 @@ const formSchema = z.object({
     .max(50, '값이 너무 깊습니다.'),
   address: z.string().trim().min(1, '주소를 검색해주세요.').max(255),
   address_detail: z.string().max(255).optional(),
+  memo: z.string().trim().max(2000).optional(),
 })
 
 type FormValues = z.infer<typeof formSchema>
@@ -129,6 +131,7 @@ export function WorkspaceFormDialog({ workspace, trigger, open: openProp, onOpen
       min_floor: workspace ? Math.abs(workspace.min_floor) : 0,
       address: workspace?.address ?? '',
       address_detail: workspace?.address_detail ?? '',
+      memo: workspace?.memo ?? '',
     },
   })
 
@@ -158,6 +161,7 @@ export function WorkspaceFormDialog({ workspace, trigger, open: openProp, onOpen
     formData.set('min_floor', String(values.min_floor))
     formData.set('address', values.address)
     if (values.address_detail) formData.set('address_detail', values.address_detail)
+    if (values.memo) formData.set('memo', values.memo)
 
     startTransition(async () => {
       const result = isEdit
@@ -329,6 +333,26 @@ export function WorkspaceFormDialog({ workspace, trigger, open: openProp, onOpen
             <FormDescription>
               지하가 없으면 0 으로 두세요. (예: 지하 2층 → 2 입력)
             </FormDescription>
+
+            <FormField
+              control={form.control}
+              name="memo"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>
+                    메모 <span className="text-muted-foreground font-normal">(선택)</span>
+                  </FormLabel>
+                  <FormControl>
+                    <Textarea
+                      placeholder="특이사항, 관리 메모 등"
+                      {...field}
+                      value={field.value ?? ''}
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
 
             <DialogFooter>
               <Button type="submit" disabled={isPending}>

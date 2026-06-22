@@ -88,7 +88,7 @@ export async function createWorkspace(formData: FormData): Promise<ActionResult<
     return { success: false, error: first }
   }
 
-  const { workspace_name, max_floor, min_floor, address, address_detail } = parsed.data
+  const { workspace_name, max_floor, min_floor, address, address_detail, memo } = parsed.data
   const minFloorValue = min_floor > 0 ? -min_floor : min_floor
 
   const supabase = createClient()
@@ -101,6 +101,7 @@ export async function createWorkspace(formData: FormData): Promise<ActionResult<
       min_floor: minFloorValue,
       address: address ?? null,
       address_detail: address_detail ?? null,
+      memo: memo ?? null,
     })
     .select()
     .single()
@@ -129,7 +130,7 @@ export async function updateWorkspace(
     return { success: false, error: first }
   }
 
-  const { workspace_name, max_floor, min_floor, address, address_detail } = parsed.data
+  const { workspace_name, max_floor, min_floor, address, address_detail, memo } = parsed.data
   const minFloorValue = min_floor > 0 ? -min_floor : min_floor
 
   const supabase = createClient()
@@ -141,6 +142,7 @@ export async function updateWorkspace(
       min_floor: minFloorValue,
       address: address ?? null,
       address_detail: address_detail ?? null,
+      memo: memo ?? null,
     })
     .eq('id', id)
     .eq('tenant_id', tenantId)

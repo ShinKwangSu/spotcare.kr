@@ -45,6 +45,7 @@ export type Workspace = {
   min_floor: number
   address: string | null
   address_detail: string | null
+  memo: string | null
   created_at: string
   deleted_at?: string | null
 }
@@ -72,8 +73,7 @@ export type Facility = {
   facility_type_id: string
   facility_name: string
   floor: number
-  location_description: string | null
-  notes: string | null
+  memo: string | null
   created_at: string
   deleted_at?: string | null
 }
@@ -192,6 +192,7 @@ export type WorkspaceInsert = {
   min_floor?: number
   address?: string | null
   address_detail?: string | null
+  memo?: string | null
   created_at?: string
   deleted_at?: string | null
 }
@@ -212,8 +213,7 @@ export type FacilityInsert = {
   facility_type_id: string
   facility_name: string
   floor: number
-  location_description?: string | null
-  notes?: string | null
+  memo?: string | null
   created_at?: string
   deleted_at?: string | null
 }

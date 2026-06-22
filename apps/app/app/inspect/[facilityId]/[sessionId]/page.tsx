@@ -34,7 +34,7 @@ export default async function InspectSessionPage({
 
   const { facility, checklistItems } = result.data
   const floorLabel = floorToDisplay(facility.floor)
-  const subtitle = [floorLabel, facility.location_description].filter(Boolean).join(' · ')
+  const subtitle = [floorLabel, facility.memo].filter(Boolean).join(' · ')
 
   return (
     <div className="min-h-screen bg-background">

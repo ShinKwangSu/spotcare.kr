@@ -148,8 +148,7 @@ export async function createFacility(
     return { success: false, error: first }
   }
 
-  const { facility_name, floor, facility_type_id, location_description, notes } =
-    parsed.data
+  const { facility_name, floor, facility_type_id, memo } = parsed.data
   const checklistId = (raw.checklist_id as string) || null
 
   const supabase = createClient()
@@ -178,8 +177,7 @@ export async function createFacility(
       facility_type_id,
       facility_name,
       floor,
-      location_description: location_description ?? null,
-      notes: notes ?? null,
+      memo: memo ?? null,
     })
     .select()
     .single()
@@ -224,8 +222,7 @@ export async function updateFacility(
     return { success: false, error: first }
   }
 
-  const { facility_name, floor, facility_type_id, location_description, notes } =
-    parsed.data
+  const { facility_name, floor, facility_type_id, memo } = parsed.data
   const checklistId = (raw.checklist_id as string) || null
 
   const supabase = createClient()
@@ -251,8 +248,7 @@ export async function updateFacility(
       facility_type_id,
       facility_name,
       floor,
-      location_description: location_description ?? null,
-      notes: notes ?? null,
+      memo: memo ?? null,
     })
     .eq('id', id)
     .eq('workspace_id', workspaceId)
