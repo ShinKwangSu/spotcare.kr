@@ -88,13 +88,20 @@ export async function createWorkspace(formData: FormData): Promise<ActionResult<
     return { success: false, error: first }
   }
 
-  const { workspace_name, max_floor, min_floor } = parsed.data
+  const { workspace_name, max_floor, min_floor, address, address_detail } = parsed.data
   const minFloorValue = min_floor > 0 ? -min_floor : min_floor
 
   const supabase = createClient()
   const { data, error } = await supabase
     .from('workspaces')
-    .insert({ tenant_id: tenantId, workspace_name, max_floor, min_floor: minFloorValue })
+    .insert({
+      tenant_id: tenantId,
+      workspace_name,
+      max_floor,
+      min_floor: minFloorValue,
+      address: address ?? null,
+      address_detail: address_detail ?? null,
+    })
     .select()
     .single()
 
@@ -121,13 +128,19 @@ export async function updateWorkspace(
     return { success: false, error: first }
   }
 
-  const { workspace_name, max_floor, min_floor } = parsed.data
+  const { workspace_name, max_floor, min_floor, address, address_detail } = parsed.data
   const minFloorValue = min_floor > 0 ? -min_floor : min_floor
 
   const supabase = createClient()
   const { data, error } = await supabase
     .from('workspaces')
-    .update({ workspace_name, max_floor, min_floor: minFloorValue })
+    .update({
+      workspace_name,
+      max_floor,
+      min_floor: minFloorValue,
+      address: address ?? null,
+      address_detail: address_detail ?? null,
+    })
     .eq('id', id)
     .eq('tenant_id', tenantId)
     .is('deleted_at', null)

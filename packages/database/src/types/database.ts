@@ -43,6 +43,8 @@ export type Workspace = {
   workspace_name: string
   max_floor: number
   min_floor: number
+  address: string | null
+  address_detail: string | null
   created_at: string
   deleted_at?: string | null
 }
@@ -188,6 +190,8 @@ export type WorkspaceInsert = {
   workspace_name: string
   max_floor?: number
   min_floor?: number
+  address?: string | null
+  address_detail?: string | null
   created_at?: string
   deleted_at?: string | null
 }

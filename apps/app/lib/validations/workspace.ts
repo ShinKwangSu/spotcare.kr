@@ -35,6 +35,8 @@ export const workspaceSchema = z.object({
     .int('지하 최저 층은 정수여야 합니다.')
     .min(0, '지하 깊이는 0 이상의 값으로 입력해주세요.')
     .max(50, '지하 최저 층이 너무 깊습니다.'),
+  address: z.string().max(255).nullable().optional(),
+  address_detail: z.string().max(255).nullable().optional(),
 })
 
 export type WorkspaceInput = z.infer<typeof workspaceSchema>
