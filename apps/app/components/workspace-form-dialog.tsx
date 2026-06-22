@@ -98,7 +98,7 @@ const formSchema = z.object({
     .int('정수로 입력해주세요.')
     .min(0, '0 이상의 깊이로 입력해주세요.')
     .max(50, '값이 너무 깊습니다.'),
-  address: z.string().max(255).nullable().optional(),
+  address: z.string().trim().min(1, '주소를 검색해주세요.').max(255),
   address_detail: z.string().max(255).optional(),
 })
 
@@ -127,7 +127,7 @@ export function WorkspaceFormDialog({ workspace, trigger, open: openProp, onOpen
       max_floor: workspace?.max_floor ?? 0,
       // DB 의 음수 min_floor 를 UI 의 양수 깊이로 환산해 프리필.
       min_floor: workspace ? Math.abs(workspace.min_floor) : 0,
-      address: workspace?.address ?? null,
+      address: workspace?.address ?? '',
       address_detail: workspace?.address_detail ?? '',
     },
   })
@@ -156,7 +156,7 @@ export function WorkspaceFormDialog({ workspace, trigger, open: openProp, onOpen
     formData.set('workspace_name', values.workspace_name)
     formData.set('max_floor', String(values.max_floor))
     formData.set('min_floor', String(values.min_floor))
-    if (values.address) formData.set('address', values.address)
+    formData.set('address', values.address)
     if (values.address_detail) formData.set('address_detail', values.address_detail)
 
     startTransition(async () => {
@@ -227,7 +227,7 @@ export function WorkspaceFormDialog({ workspace, trigger, open: openProp, onOpen
               name="address"
               render={() => (
                 <FormItem>
-                  <FormLabel>주소 <span className="text-muted-foreground font-normal">(선택)</span></FormLabel>
+                  <FormLabel>주소</FormLabel>
                   <div className="space-y-2">
                     <div className="flex gap-2">
                       {addressValue ? (
