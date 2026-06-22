@@ -27,11 +27,9 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@spotcare/ui/components/select'
-import { Input } from '@spotcare/ui/components/input'
 import { COMPLAINT_TYPE_OPTIONS } from '@/types/database'
 import { submitComplaint, uploadComplaintPhoto } from '@/app/actions/complaint'
 
-const DIRECT_INPUT_VALUE = '기타'
 const MAX_PHOTOS = 3
 
 type Props = {
@@ -41,7 +39,6 @@ type Props = {
 export function ComplaintFormDialog({ facilityId }: Props) {
   const [open, setOpen] = useState(false)
   const [selectedType, setSelectedType] = useState('')
-  const [directText, setDirectText] = useState('')
   const [content, setContent] = useState('')
   const [photoFiles, setPhotoFiles] = useState<File[]>([])
   const [photoPreviews, setPhotoPreviews] = useState<string[]>([])
@@ -50,17 +47,11 @@ export function ComplaintFormDialog({ facilityId }: Props) {
   const [isPending, startTransition] = useTransition()
   const fileInputRef = useRef<HTMLInputElement>(null)
 
-  const isDirectInput = selectedType === DIRECT_INPUT_VALUE
-  const effectiveType = isDirectInput ? directText.trim() : selectedType
-
-  const isValid =
-    effectiveType.length > 0 &&
-    content.trim().length > 0
+  const isValid = selectedType.length > 0 && content.trim().length > 0
 
   function handleClose(next: boolean) {
     if (!next) {
       setSelectedType('')
-      setDirectText('')
       setContent('')
       setPhotoFiles([])
       setPhotoPreviews([])
@@ -113,7 +104,7 @@ export function ComplaintFormDialog({ facilityId }: Props) {
 
       // 민원 접수
       const result = await submitComplaint(facilityId, {
-        complaint_type: effectiveType,
+        complaint_type: selectedType,
         content: content.trim(),
         photo_urls: uploadedUrls,
       })
@@ -171,16 +162,6 @@ export function ComplaintFormDialog({ facilityId }: Props) {
                 </SelectContent>
               </Select>
 
-              {/* "직접 입력" 선택 시 추가 텍스트 필드 */}
-              {isDirectInput && (
-                <Input
-                  placeholder="민원 유형을 직접 입력해주세요"
-                  value={directText}
-                  onChange={(e) => setDirectText(e.target.value)}
-                  maxLength={100}
-                  autoFocus
-                />
-              )}
             </div>
 
             {/* 내용 */}
