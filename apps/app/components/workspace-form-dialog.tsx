@@ -174,8 +174,6 @@ export function WorkspaceFormDialog({ workspace, trigger, open: openProp, onOpen
     })
   }
 
-  const addressValue = form.watch('address')
-
   return (
     <Dialog
       open={open}
@@ -225,15 +223,17 @@ export function WorkspaceFormDialog({ workspace, trigger, open: openProp, onOpen
             <FormField
               control={form.control}
               name="address"
-              render={() => (
+              render={({ field }) => (
                 <FormItem>
                   <FormLabel>주소</FormLabel>
+                  {/* 히든 인풋으로 필드를 폼에 연결해 검증 에러를 FormMessage 에 전달 */}
+                  <input type="hidden" {...field} value={field.value ?? ''} />
                   <div className="space-y-2">
                     <div className="flex gap-2">
-                      {addressValue ? (
-                        <div className="flex-1 flex items-center gap-2 rounded-md border px-3 py-2 bg-muted text-sm text-muted-foreground min-w-0">
-                          <MapPin className="h-3.5 w-3.5 shrink-0 text-foreground" />
-                          <span className="truncate text-foreground">{addressValue}</span>
+                      {field.value ? (
+                        <div className="flex-1 flex items-center gap-2 rounded-md border px-3 py-2 bg-muted text-sm min-w-0">
+                          <MapPin className="h-3.5 w-3.5 shrink-0" />
+                          <span className="truncate">{field.value}</span>
                         </div>
                       ) : (
                         <Input
@@ -256,7 +256,7 @@ export function WorkspaceFormDialog({ workspace, trigger, open: openProp, onOpen
                       </Button>
                     </div>
 
-                    {addressValue && (
+                    {field.value && (
                       <Input
                         id="address_detail_input"
                         placeholder="상세 주소 입력 (동, 호수 등)"
