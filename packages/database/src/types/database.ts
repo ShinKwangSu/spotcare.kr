@@ -343,7 +343,7 @@ export const COMPLAINT_TYPE_OPTIONS = [
   { value: '시설 고장', label: '시설 고장' },
   { value: '청소 요청', label: '청소 요청' },
   { value: '안전 문제', label: '안전 문제' },
-  { value: '직접 입력', label: '직접 입력' },
+  { value: '기타', label: '기타' },
 ] as const
 
 export type ComplaintTypePreset = typeof COMPLAINT_TYPE_OPTIONS[number]['value']

@@ -31,7 +31,7 @@ import { Input } from '@spotcare/ui/components/input'
 import { COMPLAINT_TYPE_OPTIONS } from '@/types/database'
 import { submitComplaint, uploadComplaintPhoto } from '@/app/actions/complaint'
 
-const DIRECT_INPUT_VALUE = '직접 입력'
+const DIRECT_INPUT_VALUE = '기타'
 const MAX_PHOTOS = 3
 
 type Props = {
